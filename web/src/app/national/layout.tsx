@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { NationalNav } from "@/components/national-nav";
+import { NationalBottomNav, NationalNav } from "@/components/national-nav";
 
 export default async function NationalLayout({
   children,
@@ -13,11 +13,12 @@ export default async function NationalLayout({
   if (session.role !== "national_admin") redirect("/login");
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[var(--bg)]">
+    <div className="app-shell">
       <NationalNav />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 pb-24 sm:px-6 sm:py-7">
-        {children}
+      <main className="app-main">
+        <div className="app-page">{children}</div>
       </main>
+      <NationalBottomNav />
     </div>
   );
 }

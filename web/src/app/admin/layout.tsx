@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { AdminNav } from "@/components/admin-nav";
+import { AdminBottomNav, AdminNav } from "@/components/admin-nav";
 
 export default async function AdminLayout({
   children,
@@ -8,16 +8,18 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  if (!session || !["school_admin", "national_admin"].includes(session.role)) {
+  if (!session || session.role !== "school_admin") {
+    if (session?.role === "national_admin") redirect("/national");
     redirect("/login");
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[var(--bg)]">
+    <div className="app-shell">
       <AdminNav />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 pb-24 sm:px-6 sm:py-7">
-        {children}
+      <main className="app-main">
+        <div className="app-page">{children}</div>
       </main>
+      <AdminBottomNav />
     </div>
   );
 }

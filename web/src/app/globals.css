@@ -112,6 +112,57 @@ textarea {
   border-bottom: 1px solid var(--stroke);
 }
 
+/*
+ * Shell admin / national : la zone contenu occupe toute la hauteur
+ * sous le header, jusqu’à la barre d’onglets.
+ */
+.app-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.app-main {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 1.25rem 1rem 0;
+}
+
+@media (min-width: 640px) {
+  .app-main {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-top: 1.75rem;
+  }
+}
+
+.app-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  min-height: 100%;
+  /* Place pour la barre d’onglets fixe */
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.app-page > * {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  min-height: 100%;
+}
+
+.app-page > * > .surface:last-child {
+  flex: 1 1 auto;
+}
+
 .focus-ring:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;

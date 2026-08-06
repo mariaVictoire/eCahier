@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Button, Field, Input, PageTitle } from "@/components/ui";
+import { buildSchoolCodePreview } from "@/lib/school-code";
 
 type SchoolRow = {
   id: string;
@@ -31,14 +32,17 @@ export default function NationalSchoolsPage() {
   const [ok, setOk] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
-  const [yearLabel, setYearLabel] = useState("2025-2026");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminFirstName, setAdminFirstName] = useState("");
   const [adminLastName, setAdminLastName] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+
+  const generatedCode = useMemo(
+    () => buildSchoolCodePreview(name, city),
+    [name, city],
+  );
 
   async function load() {
     setLoading(true);
@@ -61,10 +65,8 @@ export default function NationalSchoolsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        code,
         name,
         city,
-        schoolYearLabel: yearLabel,
         adminEmail,
         adminFirstName,
         adminLastName,
@@ -77,9 +79,8 @@ export default function NationalSchoolsPage() {
       setError(data.message || "Création impossible");
       return;
     }
-    setOk(`Établissement « ${data.school.name} » créé.`);
+    setOk(`Établissement « ${data.school.name} » créé (${data.school.code}).`);
     setShowForm(false);
-    setCode("");
     setName("");
     setCity("");
     setAdminEmail("");
@@ -112,23 +113,6 @@ export default function NationalSchoolsPage() {
           <h2 className="mb-3 text-sm font-semibold text-[var(--brand-ink)]">
             Nouvel établissement
           </h2>
-          <div className="grid gap-0 sm:grid-cols-2 sm:gap-3">
-            <Field label="Code">
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="EST-LBV-002"
-                required
-              />
-            </Field>
-            <Field label="Ville">
-              <Input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Libreville"
-              />
-            </Field>
-          </div>
           <Field label="Nom de l’établissement">
             <Input
               value={name}
@@ -137,12 +121,20 @@ export default function NationalSchoolsPage() {
               required
             />
           </Field>
-          <Field label="Année scolaire">
+          <Field label="Ville">
             <Input
-              value={yearLabel}
-              onChange={(e) => setYearLabel(e.target.value)}
-              placeholder="2025-2026"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Libreville"
               required
+            />
+          </Field>
+          <Field label="Code (généré automatiquement)">
+            <Input
+              value={generatedCode}
+              readOnly
+              placeholder="Renseignez le nom et la ville"
+              className="bg-[var(--bg)] text-[var(--brand-ink)]"
             />
           </Field>
 
@@ -184,7 +176,11 @@ export default function NationalSchoolsPage() {
           </Field>
 
           {error ? <p className="mb-3 text-sm text-[var(--danger)]">{error}</p> : null}
-          <Button type="submit" className="mt-2 w-full sm:w-auto" disabled={saving}>
+          <Button
+            type="submit"
+            className="mt-2 w-full sm:w-auto"
+            disabled={saving || !generatedCode}
+          >
             {saving ? "Création…" : "Créer l’établissement"}
           </Button>
         </form>

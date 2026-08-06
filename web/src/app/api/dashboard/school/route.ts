@@ -8,6 +8,7 @@ import {
   zonedParts,
 } from "@/lib/datetime";
 import { addDays, startOfWeekMonday } from "@/lib/calendar";
+import { ensureSchoolYearCurrent } from "@/lib/school-year";
 
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
@@ -24,6 +25,8 @@ export async function GET() {
   if (!["school_admin", "national_admin"].includes(session.role)) {
     return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
   }
+
+  await ensureSchoolYearCurrent(session.schoolId);
 
   const now = new Date();
   const today = startOfDay(now);

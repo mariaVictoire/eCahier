@@ -8,6 +8,8 @@ import { AccountIconLink } from "@/components/account-icon";
 
 export default function HomePage() {
   const [adminName, setAdminName] = useState<string | null>(null);
+  const [adminHref, setAdminHref] = useState("/admin");
+  const [adminLabel, setAdminLabel] = useState("Admin");
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -19,6 +21,13 @@ export default function HomePage() {
           (u.role === "school_admin" || u.role === "national_admin")
         ) {
           setAdminName(`${u.firstName} ${u.lastName}`.trim());
+          if (u.role === "national_admin") {
+            setAdminHref("/national");
+            setAdminLabel("Admin national");
+          } else {
+            setAdminHref("/admin");
+            setAdminLabel("Admin");
+          }
         }
       })
       .catch(() => setAdminName(null));
@@ -50,14 +59,14 @@ export default function HomePage() {
 
         {adminName ? (
           <Link
-            href="/admin"
+            href={adminHref}
             className="focus-ring max-w-[45%] rounded-md px-2 py-1.5 text-right"
           >
             <span className="block truncate text-sm font-semibold text-[var(--brand-ink)]">
               {adminName}
             </span>
             <span className="block text-[11px] text-[var(--muted)]">
-              Direction
+              {adminLabel}
             </span>
           </Link>
         ) : (

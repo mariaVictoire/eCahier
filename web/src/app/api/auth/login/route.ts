@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         message:
-          "Accès réservé à la direction. Les enseignants scannent le QR de la salle.",
+          "Accès réservé à l’espace Admin. Les enseignants scannent le QR de la salle.",
       },
       { status: 403 },
     );

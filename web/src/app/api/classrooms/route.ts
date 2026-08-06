@@ -6,6 +6,7 @@ import {
   classroomName,
   nextSectionLetter,
 } from "@/lib/classrooms";
+import { ensureSchoolYearCurrent } from "@/lib/school-year";
 
 async function requireAdmin() {
   const session = await getSession();
@@ -23,6 +24,8 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
   }
+
+  await ensureSchoolYearCurrent(session.schoolId!);
 
   const year = await prisma.schoolYear.findFirst({
     where: { schoolId: session.schoolId!, isCurrent: true },

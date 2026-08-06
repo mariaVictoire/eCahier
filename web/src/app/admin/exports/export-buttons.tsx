@@ -240,7 +240,6 @@ function StatusDonut({
   const total = Math.max(1, validated + draft + missing);
   const v = (validated / total) * 100;
   const d = (draft / total) * 100;
-  const m = (missing / total) * 100;
   const gradient = `conic-gradient(${COLORS.green} 0 ${v}%, ${COLORS.gold} ${v}% ${v + d}%, ${COLORS.orange} ${v + d}% 100%)`;
 
   return (

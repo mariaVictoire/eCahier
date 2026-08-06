@@ -17,9 +17,12 @@ export async function GET() {
       prisma.school.findMany({
         orderBy: [{ city: "asc" }, { name: "asc" }],
         include: {
+          users: {
+            where: { role: "teacher", deletedAt: null, isActive: true },
+            select: { id: true },
+          },
           _count: {
             select: {
-              users: true,
               classrooms: true,
               rooms: true,
             },
@@ -83,7 +86,7 @@ export async function GET() {
         code: school.code,
         name: school.name,
         city: school.city,
-        teachers: school._count.users,
+        teachers: school.users.length,
         classrooms: school._count.classrooms,
         rooms: school._count.rooms,
         sessionsDoneToday: done,

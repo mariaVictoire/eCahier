@@ -7,7 +7,6 @@ import { formatDateLongFr } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 type NationalDashboard = {
-  adminName: string;
   metrics: {
     schools: number;
     teachers: number;
@@ -85,12 +84,6 @@ export default function NationalDashboardPage() {
 
       <div className="surface mb-5 px-4 py-3">
         <p className="capitalize text-sm font-medium">{formatDateLongFr(new Date())}</p>
-        {data.adminName ? (
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Connecté·e :{" "}
-            <span className="font-medium text-[var(--text)]">{data.adminName}</span>
-          </p>
-        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

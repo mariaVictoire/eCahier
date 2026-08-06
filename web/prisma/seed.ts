@@ -50,6 +50,18 @@ async function main() {
     },
   });
 
+  const nationalPass = await bcrypt.hash("national123", 10);
+  await prisma.user.create({
+    data: {
+      schoolId: null,
+      role: "national_admin",
+      email: "national@ecahier.ga",
+      firstName: "Admin",
+      lastName: "NATIONAL",
+      passwordHash: nationalPass,
+    },
+  });
+
   const teacher = await prisma.user.create({
     data: {
       schoolId: school.id,
@@ -184,7 +196,8 @@ async function main() {
   }
 
   console.log("Seed OK");
-  console.log("Admin: admin@lycee.ga / admin123");
+  console.log("National: national@ecahier.ga / national123");
+  console.log("Admin école: admin@lycee.ga / admin123");
   console.log("Enseignant PIN: 123456 (OBAME / NZUE)");
   console.log("QR salle B12: /room/rm_b12_demo");
   console.log("Admin id:", admin.id);

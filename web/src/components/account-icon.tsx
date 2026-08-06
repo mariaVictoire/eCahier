@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-/** Accès direction uniquement. */
+/** Accès Admin (direction ou national). */
 export function AccountIconLink({ className }: { className?: string }) {
   return (
     <Link
       href="/login"
-      aria-label="Espace direction"
-      title="Espace direction"
+      aria-label="Espace Admin"
+      title="Espace Admin"
       className={
         className ||
         "focus-ring inline-flex h-10 w-10 items-center justify-center rounded-full text-[var(--brand-ink)] hover:bg-[var(--brand-soft)]"

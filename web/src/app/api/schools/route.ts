@@ -2,11 +2,29 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { audit, getSession } from "@/lib/auth";
+import { formatSchoolCode, schoolCodePrefix } from "@/lib/school-code";
+import { currentSchoolYearBounds } from "@/lib/school-year";
 
 async function requireNational() {
   const session = await getSession();
   if (!session || session.role !== "national_admin") return null;
   return session;
+}
+
+async function nextSchoolCode(name: string, city: string) {
+  const prefix = schoolCodePrefix(name, city);
+  const existing = await prisma.school.findMany({
+    where: { code: { startsWith: `${prefix}-` } },
+    select: { code: true },
+  });
+
+  let max = 0;
+  for (const row of existing) {
+    const match = /-(\d+)$/.exec(row.code);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+
+  return formatSchoolCode(prefix, max + 1);
 }
 
 export async function GET() {
@@ -69,12 +87,8 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const code = String(body.code || "")
-    .trim()
-    .toUpperCase();
   const name = String(body.name || "").trim();
-  const city = String(body.city || "").trim() || null;
-  const yearLabel = String(body.schoolYearLabel || "2025-2026").trim();
+  const city = String(body.city || "").trim();
 
   const adminEmail = String(body.adminEmail || "")
     .trim()
@@ -83,9 +97,9 @@ export async function POST(req: Request) {
   const adminLastName = String(body.adminLastName || "").trim();
   const adminPassword = String(body.adminPassword || "").trim();
 
-  if (!code || !name) {
+  if (!name || !city) {
     return NextResponse.json(
-      { message: "Code et nom de l’établissement requis" },
+      { message: "Nom et ville de l’établissement requis" },
       { status: 400 },
     );
   }
@@ -102,13 +116,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const existingSchool = await prisma.school.findUnique({ where: { code } });
-  if (existingSchool) {
-    return NextResponse.json(
-      { message: "Ce code établissement existe déjà" },
-      { status: 409 },
-    );
-  }
+  const code = await nextSchoolCode(name, city);
 
   const existingUser = await prisma.user.findFirst({
     where: { email: adminEmail, deletedAt: null },
@@ -121,9 +129,7 @@ export async function POST(req: Request) {
   }
 
   const passwordHash = await bcrypt.hash(adminPassword, 10);
-  const now = new Date();
-  const yearStart = new Date(`${yearLabel.split("-")[0]}-09-01T00:00:00+01:00`);
-  const yearEnd = new Date(`${yearLabel.split("-")[1] || "2026"}-07-15T00:00:00+01:00`);
+  const schoolYear = currentSchoolYearBounds();
 
   const created = await prisma.$transaction(async (tx) => {
     const school = await tx.school.create({
@@ -133,13 +139,9 @@ export async function POST(req: Request) {
     await tx.schoolYear.create({
       data: {
         schoolId: school.id,
-        label: yearLabel,
-        startsOn: Number.isNaN(yearStart.getTime())
-          ? new Date(now.getFullYear(), 8, 1)
-          : yearStart,
-        endsOn: Number.isNaN(yearEnd.getTime())
-          ? new Date(now.getFullYear() + 1, 6, 15)
-          : yearEnd,
+        label: schoolYear.label,
+        startsOn: schoolYear.startsOn,
+        endsOn: schoolYear.endsOn,
         isCurrent: true,
       },
     });

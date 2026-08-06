@@ -99,64 +99,64 @@ function IconExports({ className }: { className?: string }) {
 }
 
 export function AdminNav() {
-  const pathname = usePathname();
-
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
   }
 
   return (
-    <>
-      {/* En-tête — logo = retour à l’accueil admin */}
-      <div className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-white">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <BrandMark compact href="/admin" />
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={logout}
-              className="text-sm font-medium text-[var(--muted)] hover:text-[var(--danger)]"
-            >
-              Déconnexion
-            </button>
-          </div>
+    <div className="sticky top-0 z-20 border-b border-[var(--stroke)] bg-white">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+        <BrandMark compact href="/admin" />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={logout}
+            className="text-sm font-medium text-[var(--muted)] hover:text-[var(--danger)]"
+          >
+            Déconnexion
+          </button>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Onglets bas avec icônes */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--stroke)] bg-white/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl items-stretch justify-between gap-0.5 px-1 pb-[env(safe-area-inset-bottom)] pt-1">
-          {tabs.map((tab) => {
-            const active = tab.exact
-              ? pathname === tab.href || pathname === `${tab.href}/`
-              : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-            const Icon = tab.icon;
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
+export function AdminBottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--stroke)] bg-white/95 backdrop-blur-sm">
+      <div className="mx-auto flex max-w-5xl items-stretch justify-between gap-0.5 px-1 pb-[env(safe-area-inset-bottom)] pt-1">
+        {tabs.map((tab) => {
+          const active = tab.exact
+            ? pathname === tab.href || pathname === `${tab.href}/`
+            : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+          const Icon = tab.icon;
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-0.5 py-2 font-[family-name:var(--font-sans)] text-[10px] sm:text-[11px]",
+                active
+                  ? "font-semibold text-[var(--brand)]"
+                  : "font-medium text-[var(--muted)]",
+              )}
+            >
+              <span
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-0.5 py-2 font-[family-name:var(--font-sans)] text-[10px] sm:text-[11px]",
-                  active
-                    ? "font-semibold text-[var(--brand)]"
-                    : "font-medium text-[var(--muted)]",
+                  "inline-flex h-8 w-8 items-center justify-center rounded-full transition",
+                  active ? "bg-[var(--brand-soft)] text-[var(--brand)]" : "text-[var(--muted)]",
                 )}
               >
-                <span
-                  className={cn(
-                    "inline-flex h-8 w-8 items-center justify-center rounded-full transition",
-                    active ? "bg-[var(--brand-soft)] text-[var(--brand)]" : "text-[var(--muted)]",
-                  )}
-                >
-                  <Icon className="shrink-0" />
-                </span>
-                <span className="truncate">{tab.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-    </>
+                <Icon className="shrink-0" />
+              </span>
+              <span className="truncate">{tab.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
