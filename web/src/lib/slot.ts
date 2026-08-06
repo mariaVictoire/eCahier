@@ -32,8 +32,20 @@ export function isInWindow(
 }
 
 export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) {
+  const key = roomPublicId.trim();
+  if (!key) {
+    return { room: null, school: null, slot: null, candidates: [] as never[] };
+  }
+
   const room = await prisma.room.findFirst({
-    where: { publicId: roomPublicId, isActive: true, deletedAt: null },
+    where: {
+      isActive: true,
+      deletedAt: null,
+      OR: [
+        { publicId: key },
+        { code: { equals: key, mode: "insensitive" } },
+      ],
+    },
     include: { school: true },
   });
   if (!room) return { room: null, school: null, slot: null, candidates: [] as never[] };
