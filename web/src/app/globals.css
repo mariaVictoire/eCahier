@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+:root {
+  /* Charte inspirée du drapeau gabonais — vert dominant, or discret, bleu secondaire */
+  --ga-green: #009e60;
+  --ga-green-deep: #006b3f;
+  --ga-green-dark: #004d2e;
+  --ga-gold: #e6b800;
+  --ga-gold-soft: #fff6d6;
+  --ga-blue: #3a75c4;
+  --ga-blue-soft: #e8f0fa;
+
+  --brand: var(--ga-green);
+  --brand-ink: var(--ga-green-dark);
+  --brand-soft: #e6f5ee;
+  --accent: var(--ga-gold);
+  --accent-soft: var(--ga-gold-soft);
+  --info: var(--ga-blue);
+  --info-soft: var(--ga-blue-soft);
+
+  --bg: #f3f5f2;
+  --surface: #ffffff;
+  --text: #14201a;
+  --muted: #5a6a61;
+  --danger: #c0392b;
+  --warn: #b7791f;
+  --ok: #007a45;
+  --stroke: #d4ddd7;
+  --stroke-strong: #b8c5bc;
+
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(20, 32, 26, 0.04);
+  --header-h: 56px;
+
+  --background: var(--bg);
+  --foreground: var(--text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+
+/* Bandeau tricolore institutionnel (vert / or / bleu) */
+.ga-stripe {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--ga-green) 0 34%,
+    var(--ga-gold) 34% 66%,
+    var(--ga-blue) 66% 100%
+  );
+}
+
+.page-shell {
+  margin: 0 auto;
+  min-height: 100dvh;
+  max-width: 28rem;
+  padding: 0 1.25rem 2rem;
+}
+
+.page-shell--wide {
+  max-width: 72rem;
+}
+
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+}
+
+.surface-flush {
+  background: var(--surface);
+  border-bottom: 1px solid var(--stroke);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media print {
+  .ga-stripe,
+  .no-print {
+    display: none !important;
+  }
+}

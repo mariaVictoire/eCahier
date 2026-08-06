@@ -1,0 +1,10 @@
+{
+  "name": "eCahier",
+  "short_name": "eCahier",
+  "description": "Cahier de textes numérique — Gabon",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3F5F2",
+  "theme_color": "#006B3F",
+  "lang": "fr"
+}

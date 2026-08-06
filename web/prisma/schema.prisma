@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model School {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  city      String?
+  timezone  String   @default("Africa/Libreville")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  schoolYears SchoolYear[]
+  classrooms  Classroom[]
+  rooms       Room[]
+  subjects    Subject[]
+  slots       TimetableSlot[]
+  sessions    LessonSession[]
+  auditLogs   AuditLog[]
+}
+
+model SchoolYear {
+  id        String   @id @default(cuid())
+  schoolId  String
+  label     String
+  startsOn  DateTime
+  endsOn    DateTime
+  isCurrent Boolean  @default(false)
+
+  school     School          @relation(fields: [schoolId], references: [id])
+  classrooms Classroom[]
+  slots      TimetableSlot[]
+  sessions   LessonSession[]
+
+  @@unique([schoolId, label])
+}
+
+model User {
+  id                String    @id @default(cuid())
+  schoolId          String?
+  role              String // national_admin | school_admin | teacher
+  email             String?
+  phone             String?
+  firstName         String
+  lastName          String
+  passwordHash      String?
+  pinHash           String?
+  /// PIN en clair pour consultation direction (retransmission si oubli)
+  pinCode           String?
+  pinFailedAttempts Int       @default(0)
+  pinLockedUntil    DateTime?
+  isActive          Boolean   @default(true)
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  school   School?          @relation(fields: [schoolId], references: [id])
+  slots    TimetableSlot[]  @relation("SlotTeacher")
+  sessions LessonSession[]
+  audits   AuditLog[]
+
+  @@index([schoolId, role])
+}
+
+model Classroom {
+  id           String    @id @default(cuid())
+  schoolId     String
+  schoolYearId String
+  name         String
+  level        String?
+  notes        String?
+  deletedAt    DateTime?
+
+  school     School          @relation(fields: [schoolId], references: [id])
+  schoolYear SchoolYear      @relation(fields: [schoolYearId], references: [id])
+  slots      TimetableSlot[]
+  sessions   LessonSession[]
+  homeRooms  Room[]
+
+  @@unique([schoolId, schoolYearId, name])
+}
+
+model Room {
+  id               String    @id @default(cuid())
+  schoolId         String
+  code             String
+  label            String
+  building         String?
+  /// Classe affichée sur l’étiquette QR (ex. 6ème A)
+  homeClassroomId  String?
+  publicId         String    @unique
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  deletedAt        DateTime?
+
+  school        School     @relation(fields: [schoolId], references: [id])
+  homeClassroom Classroom? @relation(fields: [homeClassroomId], references: [id])
+  slots         TimetableSlot[]
+  sessions      LessonSession[]
+
+  @@unique([schoolId, code])
+}
+
+model Subject {
+  id       String @id @default(cuid())
+  schoolId String
+  code     String
+  name     String
+
+  school   School          @relation(fields: [schoolId], references: [id])
+  slots    TimetableSlot[]
+  sessions LessonSession[]
+
+  @@unique([schoolId, code])
+}
+
+model TimetableSlot {
+  id           String    @id @default(cuid())
+  schoolId     String
+  schoolYearId String
+  roomId       String
+  classroomId  String
+  subjectId    String
+  teacherId    String
+  weekday      String // mon tue wed thu fri sat sun
+  startsAt     String // "08:00"
+  endsAt       String // "09:00"
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  deletedAt     DateTime?
+
+  school     School          @relation(fields: [schoolId], references: [id])
+  schoolYear SchoolYear      @relation(fields: [schoolYearId], references: [id])
+  room       Room            @relation(fields: [roomId], references: [id])
+  classroom  Classroom       @relation(fields: [classroomId], references: [id])
+  subject    Subject         @relation(fields: [subjectId], references: [id])
+  teacher    User            @relation("SlotTeacher", fields: [teacherId], references: [id])
+  sessions   LessonSession[]
+
+  @@index([roomId, weekday, startsAt])
+}
+
+model LessonSession {
+  id                 String    @id @default(cuid())
+  schoolId           String
+  schoolYearId       String
+  roomId             String
+  classroomId        String
+  subjectId          String
+  teacherId          String
+  slotId             String?
+  sessionDate        DateTime
+  startsAt           DateTime
+  endsAt             DateTime
+  title              String    @default("")
+  content            String    @default("")
+  competencies       String    @default("[]") // JSON
+  exercises          String    @default("")
+  homeworkText       String    @default("")
+  homeworkDueOn      DateTime?
+  observations       String    @default("")
+  status             String    @default("draft") // draft | validated | locked
+  signatureImage     String?   // data URL PNG de la signature manuscrite
+  signatureHash      String?
+  validatedAt        DateTime?
+  clientMutationId   String?   @unique
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  school     School         @relation(fields: [schoolId], references: [id])
+  schoolYear SchoolYear     @relation(fields: [schoolYearId], references: [id])
+  room       Room           @relation(fields: [roomId], references: [id])
+  classroom  Classroom      @relation(fields: [classroomId], references: [id])
+  subject    Subject        @relation(fields: [subjectId], references: [id])
+  teacher    User           @relation(fields: [teacherId], references: [id])
+  slot       TimetableSlot? @relation(fields: [slotId], references: [id])
+
+  @@index([teacherId, sessionDate])
+  @@index([classroomId, sessionDate])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  schoolId   String?
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  meta       String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  school School? @relation(fields: [schoolId], references: [id])
+  actor  User?   @relation(fields: [actorId], references: [id])
+
+  @@index([schoolId, createdAt])
+}

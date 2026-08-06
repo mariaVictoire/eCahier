@@ -1,0 +1,208 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { audit, getSession } from "@/lib/auth";
+import {
+  CLASS_LEVELS,
+  classroomName,
+  nextSectionLetter,
+} from "@/lib/classrooms";
+
+async function requireAdmin() {
+  const session = await getSession();
+  if (
+    !session?.schoolId ||
+    !["school_admin", "national_admin"].includes(session.role)
+  ) {
+    return null;
+  }
+  return session;
+}
+
+function makePublicId(code: string) {
+  const slug = code
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+  return `rm_${slug}_${Date.now().toString(36).slice(-4)}`;
+}
+
+function roomCodeFromClassName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ème/gi, "E")
+    .replace(/[^a-zA-Z0-9]+/g, "")
+    .toUpperCase()
+    .slice(0, 12);
+}
+
+export async function GET() {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+  }
+
+  const year = await prisma.schoolYear.findFirst({
+    where: { schoolId: session.schoolId!, isCurrent: true },
+  });
+
+  const [rooms, classrooms] = await Promise.all([
+    prisma.room.findMany({
+      where: { schoolId: session.schoolId!, deletedAt: null },
+      include: {
+        homeClassroom: { select: { id: true, name: true, level: true } },
+      },
+      orderBy: { code: "asc" },
+    }),
+    year
+      ? prisma.classroom.findMany({
+          where: {
+            schoolId: session.schoolId!,
+            schoolYearId: year.id,
+            deletedAt: null,
+          },
+          select: { id: true, name: true, level: true, notes: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+  return NextResponse.json({
+    baseUrl: base,
+    levels: CLASS_LEVELS,
+    classrooms,
+    items: rooms.map((r) => ({
+      id: r.id,
+      code: r.code,
+      label: r.homeClassroom?.name || r.label,
+      building: r.building,
+      publicId: r.publicId,
+      isActive: r.isActive,
+      classroomName: r.homeClassroom?.name ?? null,
+      url: `${base}/room/${r.publicId}`,
+    })),
+  });
+}
+
+export async function POST(req: Request) {
+  const session = await requireAdmin();
+  if (!session) {
+    return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const level = String(body.level || "").trim();
+  const notes = String(body.notes || body.building || "").trim() || null;
+
+  if (!level || !(CLASS_LEVELS as readonly string[]).includes(level)) {
+    return NextResponse.json({ message: "Niveau invalide" }, { status: 400 });
+  }
+
+  const year = await prisma.schoolYear.findFirst({
+    where: { schoolId: session.schoolId!, isCurrent: true },
+  });
+  if (!year) {
+    return NextResponse.json(
+      { message: "Aucune année scolaire en cours" },
+      { status: 400 },
+    );
+  }
+
+  const existingClasses = await prisma.classroom.findMany({
+    where: {
+      schoolId: session.schoolId!,
+      schoolYearId: year.id,
+      level,
+      deletedAt: null,
+    },
+    select: { name: true },
+  });
+
+  let letter: string;
+  try {
+    letter = nextSectionLetter(
+      level,
+      existingClasses.map((c) => c.name),
+    );
+  } catch {
+    return NextResponse.json(
+      { message: "Toutes les lettres A–Z sont déjà utilisées pour ce niveau" },
+      { status: 409 },
+    );
+  }
+
+  const name = classroomName(level, letter);
+  let code = roomCodeFromClassName(name);
+
+  const codeClash = await prisma.room.findFirst({
+    where: { schoolId: session.schoolId!, code, deletedAt: null },
+  });
+  if (codeClash) {
+    code = `${code}${Date.now().toString(36).slice(-3)}`.toUpperCase();
+  }
+
+  const classroom = await prisma.classroom.create({
+    data: {
+      schoolId: session.schoolId!,
+      schoolYearId: year.id,
+      name,
+      level,
+      notes,
+    },
+  });
+
+  const room = await prisma.room.create({
+    data: {
+      schoolId: session.schoolId!,
+      code,
+      label: name,
+      building: notes,
+      homeClassroomId: classroom.id,
+      publicId: makePublicId(code),
+    },
+  });
+
+  await audit("classroom.create", {
+    schoolId: session.schoolId,
+    actorId: session.sub,
+    entityType: "classroom",
+    entityId: classroom.id,
+    meta: { name, level },
+  });
+  await audit("room.create", {
+    schoolId: session.schoolId,
+    actorId: session.sub,
+    entityType: "room",
+    entityId: room.id,
+    meta: { code: room.code, label: name },
+  });
+
+  const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const url = `${base}/room/${room.publicId}`;
+
+  const QRCode = (await import("qrcode")).default;
+  const qrDataUrl = await QRCode.toDataURL(url, {
+    width: 320,
+    margin: 1,
+    color: { dark: "#004D2E", light: "#FFFFFF" },
+  });
+
+  return NextResponse.json(
+    {
+      id: room.id,
+      code: room.code,
+      label: name,
+      building: notes,
+      publicId: room.publicId,
+      classroomName: name,
+      classroomId: classroom.id,
+      url,
+      qrDataUrl,
+    },
+    { status: 201 },
+  );
+}
