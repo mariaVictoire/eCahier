@@ -36,7 +36,6 @@ async function main() {
 
   const adminPin = await bcrypt.hash("123456", 10);
   const adminPass = await bcrypt.hash("admin123", 10);
-  const teacherPin = await bcrypt.hash("123456", 10);
 
   const admin = await prisma.user.create({
     data: {
@@ -70,7 +69,7 @@ async function main() {
       phone: "077012345",
       firstName: "Jean",
       lastName: "OBAME",
-      pinHash: teacherPin,
+      pinHash: await bcrypt.hash("123456", 10),
       pinCode: "123456",
     },
   });
@@ -83,8 +82,8 @@ async function main() {
       phone: "066098765",
       firstName: "Marie",
       lastName: "NZUE",
-      pinHash: teacherPin,
-      pinCode: "123456",
+      pinHash: await bcrypt.hash("654321", 10),
+      pinCode: "654321",
     },
   });
 
@@ -198,7 +197,7 @@ async function main() {
   console.log("Seed OK");
   console.log("National: national@ecahier.ga / national123");
   console.log("Admin école: admin@lycee.ga / admin123");
-  console.log("Enseignant PIN: 123456 (OBAME / NZUE)");
+  console.log("Enseignant PIN: OBAME 123456 · NZUE 654321");
   console.log("QR salle B12: /room/rm_b12_demo");
   console.log("Admin id:", admin.id);
 }

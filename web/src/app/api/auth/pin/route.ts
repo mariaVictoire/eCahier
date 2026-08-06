@@ -42,28 +42,26 @@ export async function POST(req: Request) {
     );
   }
 
-  // Allow expected teacher; also allow any teacher of the school with matching PIN for demo flexibility
-  const teachers = await prisma.user.findMany({
+  // Prefer the teacher expected on the slot (same PIN for several teachers must not break).
+  const expected = await prisma.user.findFirst({
     where: {
-      schoolId: slot.schoolId,
+      id: slot.teacherId,
       role: "teacher",
       isActive: true,
       deletedAt: null,
-      pinHash: { not: null },
     },
   });
 
-  let matched = null as (typeof teachers)[number] | null;
-  for (const t of teachers) {
-    if (t.pinLockedUntil && t.pinLockedUntil > new Date()) continue;
-    if (await verifyPin(pin, t.pinHash)) {
-      matched = t;
-      break;
-    }
+  let matched = null as typeof expected;
+  if (
+    expected &&
+    !(expected.pinLockedUntil && expected.pinLockedUntil > new Date()) &&
+    (await verifyPin(pin, expected.pinHash))
+  ) {
+    matched = expected;
   }
 
   if (!matched) {
-    // increment fails on expected teacher
     await prisma.user.update({
       where: { id: slot.teacherId },
       data: {
@@ -77,23 +75,6 @@ export async function POST(req: Request) {
       meta: { slotId: slot.id },
     });
     return NextResponse.json({ message: "Code PIN incorrect" }, { status: 401 });
-  }
-
-  // Authorization: must be expected teacher (or admin will use login)
-  if (matched.id !== slot.teacherId) {
-    await audit("pin.unauthorized", {
-      schoolId: slot.schoolId,
-      actorId: matched.id,
-      entityType: "slot",
-      entityId: slot.id,
-    });
-    return NextResponse.json(
-      {
-        message:
-          "Ce PIN ne correspond pas au professeur prévu. Contactez l’administration pour un remplacement.",
-      },
-      { status: 403 },
-    );
   }
 
   await prisma.user.update({
