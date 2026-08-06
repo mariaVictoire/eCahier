@@ -179,10 +179,16 @@ export default function RoomPinPage() {
               Confirmez votre identité
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">
-              Code PIN de{" "}
-              <span className="font-medium text-[var(--text)]">
-                {activeSlot.expectedTeacher.displayName}
-              </span>
+              {activeSlot ? (
+                <>
+                  Code PIN de{" "}
+                  <span className="font-medium text-[var(--text)]">
+                    {activeSlot.expectedTeacher.displayName}
+                  </span>
+                </>
+              ) : (
+                "Saisissez votre code PIN personnel"
+              )}
             </p>
             <div className="my-5 flex justify-center gap-2.5">
               {Array.from({ length: 6 }).map((_, i) => (
