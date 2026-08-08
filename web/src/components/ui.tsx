@@ -47,7 +47,13 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     return (
       <input
         ref={ref}
-        className={cn(fieldControl, "h-11 px-3.5 text-[15px]", className)}
+        className={cn(
+          fieldControl,
+          "h-11 min-w-0 max-w-full px-3.5 text-[15px]",
+          (props.type === "date" || props.type === "time") &&
+            "px-2 text-[13px] tabular-nums sm:px-3.5 sm:text-[15px]",
+          className,
+        )}
         {...props}
       />
     );

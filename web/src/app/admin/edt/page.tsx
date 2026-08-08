@@ -633,8 +633,8 @@ export default function EdtPage() {
                   ))}
                 </Select>
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Début">
+              <div className="grid grid-cols-2 gap-2 overflow-hidden">
+                <Field label="Début" className="mb-0 min-w-0">
                   <Input
                     type="time"
                     value={form.startsAt}
@@ -644,7 +644,7 @@ export default function EdtPage() {
                     required
                   />
                 </Field>
-                <Field label="Fin">
+                <Field label="Fin" className="mb-0 min-w-0">
                   <Input
                     type="time"
                     value={form.endsAt}
