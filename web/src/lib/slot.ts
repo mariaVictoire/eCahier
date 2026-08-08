@@ -181,7 +181,7 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
       note:
         catchUpSlots.length === 1
           ? "Cours non saisi — rattrapage possible."
-          : `Jusqu’à ${CATCHUP_MAX} cours non saisis — choisissez le vôtre puis saisissez le PIN de l’enseignant indiqué.`,
+          : undefined,
     };
   }
 
