@@ -1,7 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Button, Field, Input, PageTitle, Select } from "@/components/ui";
 import { CLASS_LEVELS } from "@/lib/classrooms";
@@ -18,13 +24,16 @@ type Classroom = {
 export function ClassesManager() {
   const router = useRouter();
   const [items, setItems] = useState<Classroom[]>([]);
-  const [yearLabel, setYearLabel] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [level, setLevel] = useState<string>(CLASS_LEVELS[0]);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [previewLetter, setPreviewLetter] = useState("A");
+
+  const [query, setQuery] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,7 +44,6 @@ export function ClassesManager() {
       let data: {
         message?: string;
         items?: Classroom[];
-        schoolYear?: { label?: string };
       } = {};
       try {
         data = text ? JSON.parse(text) : {};
@@ -57,7 +65,6 @@ export function ClassesManager() {
         return;
       }
       setItems(data.items || []);
-      setYearLabel(data.schoolYear?.label || "");
     } catch {
       setError(
         "Chargement impossible. Vérifiez votre connexion, puis reconnectez-vous si besoin.",
@@ -98,6 +105,25 @@ export function ClassesManager() {
     setPreviewLetter(next);
   }, [items, level]);
 
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!pickerRef.current?.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((c) => {
+      const hay = `${c.name} ${c.room?.code || ""} ${c.level || ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [items, query]);
+
   async function onCreate(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -121,12 +147,30 @@ export function ClassesManager() {
     await load();
   }
 
+  async function deleteClass(c: Classroom) {
+    if (!confirm(`Supprimer « ${c.name} » (QR + effectif) ?`)) return;
+    setError("");
+    const res = await fetch(`/api/classrooms/${c.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.message || "Suppression impossible");
+      return;
+    }
+    if (query.trim().toLowerCase() === c.name.toLowerCase()) {
+      setQuery("");
+    }
+    await load();
+  }
+
+  function openClass(c: Classroom) {
+    setQuery(c.name);
+    setPickerOpen(false);
+    router.push(`/admin/classes/${c.id}`);
+  }
+
   return (
     <div>
-      <PageTitle
-        title="Classes & QR"
-        subtitle={yearLabel ? `Année ${yearLabel}` : undefined}
-      />
+      <PageTitle title="Classes & QR" />
 
       <form
         onSubmit={onCreate}
@@ -164,7 +208,7 @@ export function ClassesManager() {
           className="w-full sm:w-auto"
           disabled={saving || previewLetter === "?"}
         >
-          {saving ? "…" : `Créer ${level} ${previewLetter}`}
+          {saving ? "…" : "Créer"}
         </Button>
       </form>
 
@@ -190,36 +234,92 @@ export function ClassesManager() {
           Aucune classe. Créez la première ci-dessus.
         </p>
       ) : items.length === 0 ? null : (
-        <div className="surface overflow-hidden">
-          <p className="border-b border-[var(--stroke)] bg-[var(--bg)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Classes ({items.length})
-          </p>
-          <ul className="divide-y divide-[var(--stroke)]">
-            {items.map((c) => (
-              <li key={c.id}>
-                <Link
-                  href={`/admin/classes/${c.id}`}
-                  className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-[var(--bg)]"
-                >
-                  <span>
-                    <span className="block text-sm font-semibold text-[var(--text)]">
-                      {c.name}
-                    </span>
-                    <span className="block text-xs text-[var(--muted)]">
-                      {c.room?.code ? `${c.room.code} · ` : ""}
-                      {c.studentsCount ?? 0} élève
-                      {(c.studentsCount ?? 0) > 1 ? "s" : ""}
-                    </span>
-                  </span>
-                  <span className="text-sm font-medium text-[var(--brand)]">
-                    Ouvrir
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <div className="surface space-y-4 p-4 sm:p-5">
+          <div>
+            <h2 className="m-0 text-base font-semibold text-[var(--brand-ink)]">
+              Classes ({items.length})
+            </h2>
+          </div>
+
+          <div ref={pickerRef} className="relative">
+            <Field label="Rechercher une classe" className="mb-0">
+              <Input
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPickerOpen(true);
+                }}
+                onFocus={() => setPickerOpen(true)}
+                autoComplete="off"
+                aria-expanded={pickerOpen}
+                aria-controls="class-picker-list"
+              />
+            </Field>
+            {pickerOpen ? (
+              <ul
+                id="class-picker-list"
+                role="listbox"
+                className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-[10px] border border-[var(--stroke)] bg-white shadow-sm"
+              >
+                {filtered.length === 0 ? (
+                  <li className="px-3 py-3 text-sm text-[var(--muted)]">
+                    Aucune classe trouvée
+                  </li>
+                ) : (
+                  filtered.map((c) => (
+                    <li
+                      key={c.id}
+                      role="option"
+                      className="flex items-center gap-1 border-b border-[var(--stroke)] last:border-b-0"
+                    >
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 px-3 py-2.5 text-left transition hover:bg-[var(--bg)]"
+                        onClick={() => openClass(c)}
+                      >
+                        <span className="block text-sm font-semibold text-[var(--text)]">
+                          {c.name}
+                        </span>
+                        <span className="block text-xs text-[var(--muted)]">
+                          {c.room?.code ? `${c.room.code} · ` : ""}
+                          {c.studentsCount ?? 0} élève
+                          {(c.studentsCount ?? 0) > 1 ? "s" : ""}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--danger)] transition hover:bg-red-50"
+                        title="Supprimer"
+                        aria-label={`Supprimer ${c.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteClass(c);
+                        }}
+                      >
+                        <IconTrash />
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            ) : null}
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+function IconTrash() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 6h18M8 6V4h8v2M9 10v8M12 10v8M15 10v8M6 6l1 14h10l1-14"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

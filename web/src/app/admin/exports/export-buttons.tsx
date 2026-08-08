@@ -2,10 +2,19 @@
 
 import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { Button, Field, Select } from "@/components/ui";
+import { Button, Field, Input, Select } from "@/components/ui";
 import { formatDateLongFr, formatHmRangeFr } from "@/lib/datetime";
 
 type Period = "week" | "month" | "year";
+type AttendancePeriod = Period | "day";
+
+function todayInputDate() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 type ReportData = {
   period: Period;
@@ -21,6 +30,9 @@ type ReportData = {
     validated: number;
     draft: number;
     fillRatePercent: number;
+    attendancePresent?: number;
+    attendanceAbsent?: number;
+    attendanceLate?: number;
   };
   byTeacher: { teacherId: string; name: string; done: number; missing: number }[];
   byClassroom: { classroomId: string; name: string; done: number; missing: number }[];
@@ -74,6 +86,50 @@ type CahierData = {
   }[];
   generatedAt: string;
 };
+
+type AttendanceData = {
+  period: Period | "day";
+  periodTitle: string;
+  rangeLabel: string;
+  day?: string | null;
+  classroom: {
+    id: string;
+    name: string;
+    schoolName: string;
+    schoolCity?: string | null;
+    schoolYear: string;
+  };
+  sessionCount: number;
+  studentCount: number;
+  totals: { present: number; absent: number; late: number };
+  items: {
+    studentId: string;
+    lastName: string;
+    firstName: string;
+    present: number;
+    absent: number;
+    late: number;
+    sessions: number;
+    absentDates?: string[];
+    lateDates?: string[];
+  }[];
+  dayRows?: {
+    studentId: string;
+    lastName: string;
+    firstName: string;
+    sessionId: string;
+    subject: string;
+    timeRange: string;
+    status: "present" | "absent" | "late";
+  }[];
+  generatedAt: string;
+};
+
+function statusLabel(status: "present" | "absent" | "late") {
+  if (status === "absent") return "Absent";
+  if (status === "late") return "En retard";
+  return "Présent";
+}
 
 const COLORS = {
   green: "#009e60",
@@ -553,6 +609,31 @@ function ReportDocument({
           />
         </div>
 
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 14,
+            marginTop: 14,
+          }}
+        >
+          <Kpi
+            label="Présences élèves"
+            value={report.metrics.attendancePresent ?? 0}
+            accent={COLORS.green}
+          />
+          <Kpi
+            label="Absences"
+            value={report.metrics.attendanceAbsent ?? 0}
+            accent="#c0392b"
+          />
+          <Kpi
+            label="Retards"
+            value={report.metrics.attendanceLate ?? 0}
+            accent={COLORS.orange}
+          />
+        </div>
+
         {/* Ligne milieu */}
         <div
           style={{
@@ -934,6 +1015,219 @@ function CahierDocument({ cahier }: { cahier: CahierData }) {
   );
 }
 
+function AttendanceDocument({ data }: { data: AttendanceData }) {
+  return (
+    <div
+      style={{
+        width: 1100,
+        background: COLORS.bg,
+        color: COLORS.text,
+        fontFamily:
+          "Segoe UI, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        padding: 28,
+      }}
+    >
+      <div
+        style={{
+          background: COLORS.greenDark,
+          color: COLORS.white,
+          borderRadius: 18,
+          padding: "22px 24px",
+          marginBottom: 18,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            opacity: 0.8,
+          }}
+        >
+          Liste de présences
+        </div>
+        <div style={{ marginTop: 8, fontSize: 28, fontWeight: 800 }}>
+          {data.classroom.name}
+        </div>
+        <div style={{ marginTop: 6, fontSize: 14, opacity: 0.9 }}>
+          {data.classroom.schoolName}
+          {data.classroom.schoolCity ? ` · ${data.classroom.schoolCity}` : ""}
+          {" · "}
+          {data.periodTitle} ({data.rangeLabel})
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 12,
+          marginBottom: 18,
+        }}
+      >
+        <Kpi label="Séances" value={data.sessionCount} accent={COLORS.green} />
+        <Kpi label="Élèves" value={data.studentCount} accent={COLORS.blue} />
+        <Kpi label="Absences" value={data.totals.absent} accent="#c0392b" />
+        <Kpi label="Retards" value={data.totals.late} accent={COLORS.orange} />
+      </div>
+
+      <Panel title="Détail par élève">
+        {data.items.length === 0 ? (
+          <div style={{ color: COLORS.muted, fontSize: 14 }}>
+            Aucun élève dans cette classe.
+          </div>
+        ) : data.sessionCount === 0 ? (
+          <div style={{ color: COLORS.muted, fontSize: 14 }}>
+            Aucune séance sur cette période.
+          </div>
+        ) : (
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: 13,
+            }}
+          >
+            <thead>
+              <tr>
+                {[
+                  "Élève",
+                  "Séances",
+                  "Présents",
+                  "Absents",
+                  "Retards",
+                  "Dates d’absence",
+                  "Dates de retard",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      textAlign:
+                        h === "Élève" ||
+                        h === "Dates d’absence" ||
+                        h === "Dates de retard"
+                          ? "left"
+                          : "right",
+                      padding: "8px 6px",
+                      borderBottom: `1px solid ${COLORS.stroke}`,
+                      color: COLORS.muted,
+                      fontWeight: 700,
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((row) => (
+                <tr key={row.studentId}>
+                  <td
+                    style={{
+                      padding: "9px 6px",
+                      borderBottom: `1px solid ${COLORS.stroke}`,
+                      fontWeight: 600,
+                      verticalAlign: "top",
+                    }}
+                  >
+                    {row.lastName} {row.firstName}
+                  </td>
+                  <td
+                    style={{
+                      padding: "9px 6px",
+                      borderBottom: `1px solid ${COLORS.stroke}`,
+                      textAlign: "right",
+                      verticalAlign: "top",
+                    }}
+                  >
+                    {row.sessions}
+                  </td>
+                  <td
+                    style={{
+                      padding: "9px 6px",
+                      borderBottom: `1px solid ${COLORS.stroke}`,
+                      textAlign: "right",
+                      verticalAlign: "top",
+                    }}
+                  >
+                    {row.present}
+                  </td>
+                  <td
+                    style={{
+                      padding: "9px 6px",
+                      borderBottom: `1px solid ${COLORS.stroke}`,
+                      textAlign: "right",
+                      color: row.absent > 0 ? "#c0392b" : COLORS.text,
+                      fontWeight: row.absent > 0 ? 700 : 400,
+                      verticalAlign: "top",
+                    }}
+                  >
+                    {row.absent}
+                  </td>
+                  <td
+                    style={{
+                      padding: "9px 6px",
+                      borderBottom: `1px solid ${COLORS.stroke}`,
+                      textAlign: "right",
+                      color: row.late > 0 ? COLORS.orange : COLORS.text,
+                      fontWeight: row.late > 0 ? 700 : 400,
+                      verticalAlign: "top",
+                    }}
+                  >
+                    {row.late}
+                  </td>
+                  <td
+                    style={{
+                      padding: "9px 6px",
+                      borderBottom: `1px solid ${COLORS.stroke}`,
+                      fontSize: 12,
+                      color: COLORS.muted,
+                      verticalAlign: "top",
+                      maxWidth: 220,
+                    }}
+                  >
+                    {row.absentDates?.length
+                      ? row.absentDates.join(" · ")
+                      : "—"}
+                  </td>
+                  <td
+                    style={{
+                      padding: "9px 6px",
+                      borderBottom: `1px solid ${COLORS.stroke}`,
+                      fontSize: 12,
+                      color: COLORS.muted,
+                      verticalAlign: "top",
+                      maxWidth: 220,
+                    }}
+                  >
+                    {row.lateDates?.length ? row.lateDates.join(" · ") : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+
+      <div
+        style={{
+          marginTop: 14,
+          fontSize: 11,
+          color: COLORS.muted,
+          textAlign: "center",
+        }}
+      >
+        eCahier · {data.classroom.name} · {data.periodTitle} ({data.rangeLabel}){" "}
+        · Généré le {formatDateLongFr(data.generatedAt)}
+      </div>
+    </div>
+  );
+}
+
 export function ExportButtons({
   schoolName,
   classrooms,
@@ -944,13 +1238,30 @@ export function ExportButtons({
   const [classroomId, setClassroomId] = useState(classrooms[0]?.id || "");
   const [period, setPeriod] = useState<Period>("week");
   const [cahierPeriod, setCahierPeriod] = useState<Period>("week");
+  const [attendanceClassroomId, setAttendanceClassroomId] = useState(
+    classrooms[0]?.id || "",
+  );
+  const [attendancePeriod, setAttendancePeriod] =
+    useState<AttendancePeriod>("day");
+  const [attendanceDate, setAttendanceDate] = useState(todayInputDate());
   const [report, setReport] = useState<ReportData | null>(null);
   const [cahier, setCahier] = useState<CahierData | null>(null);
-  const [busy, setBusy] = useState<"report-pdf" | "report-png" | "cahier-pdf" | "cahier-png" | null>(
-    null,
-  );
+  const [attendance, setAttendance] = useState<AttendanceData | null>(null);
+  const [attendancePreview, setAttendancePreview] =
+    useState<AttendanceData | null>(null);
+  const [busy, setBusy] = useState<
+    | "report-pdf"
+    | "report-png"
+    | "cahier-pdf"
+    | "cahier-png"
+    | "attendance-pdf"
+    | "attendance-csv"
+    | "attendance-view"
+    | null
+  >(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const cahierRef = useRef<HTMLDivElement>(null);
+  const attendanceRef = useRef<HTMLDivElement>(null);
 
   async function waitForPaint() {
     await new Promise<void>((resolve) => {
@@ -1062,6 +1373,27 @@ export function ExportButtons({
     return data as CahierData;
   }
 
+  async function loadAttendance() {
+    if (!attendanceClassroomId) throw new Error("Choisissez une classe");
+    const params = new URLSearchParams({
+      classroomId: attendanceClassroomId,
+      period: attendancePeriod,
+    });
+    if (attendancePeriod === "day") {
+      params.set("date", attendanceDate);
+    }
+    const res = await fetch(`/api/reports/attendance?${params.toString()}`);
+    const data = await res.json();
+    if (!res.ok || data.message) {
+      throw new Error(data.message || "Rapport de présences indisponible");
+    }
+    flushSync(() => {
+      setAttendance(data);
+    });
+    await waitForPaint();
+    return data as AttendanceData;
+  }
+
   async function downloadReportPdf() {
     setBusy("report-pdf");
     try {
@@ -1129,6 +1461,87 @@ export function ExportButtons({
     } catch (error) {
       console.error(error);
       window.alert("Impossible de générer l’image. Réessayez.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function downloadAttendancePdf() {
+    setBusy("attendance-pdf");
+    try {
+      const data = await loadAttendance();
+      if (!attendanceRef.current) throw new Error("Rendu présences indisponible");
+      await downloadNodeAsPdf(
+        attendanceRef.current,
+        `presences-${data.classroom.name.replace(/\s+/g, "-").toLowerCase()}-${data.period}-${new Date().toISOString().slice(0, 10)}.pdf`,
+        COLORS.bg,
+      );
+    } catch (error) {
+      console.error(error);
+      window.alert("Impossible de générer le PDF. Réessayez.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function downloadAttendanceCsv() {
+    setBusy("attendance-csv");
+    try {
+      const data = await loadAttendance();
+      const header = [
+        "Nom",
+        "Prénom",
+        "Séances",
+        "Présents",
+        "Absents",
+        "Retards",
+        "Dates d'absence",
+        "Dates de retard",
+      ];
+      const lines = [
+        header.join(";"),
+        ...data.items.map((row) =>
+          [
+            row.lastName,
+            row.firstName,
+            row.sessions,
+            row.present,
+            row.absent,
+            row.late,
+            (row.absentDates || []).join(" | "),
+            (row.lateDates || []).join(" | "),
+          ]
+            .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+            .join(";"),
+        ),
+      ];
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + lines.join("\n")], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `presences-${data.classroom.name.replace(/\s+/g, "-").toLowerCase()}-${data.period}-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error(error);
+      window.alert("Impossible de générer le CSV. Réessayez.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function viewAttendance() {
+    setBusy("attendance-view");
+    try {
+      const data = await loadAttendance();
+      setAttendancePreview(data);
+    } catch (error) {
+      console.error(error);
+      window.alert("Impossible de charger le rapport. Réessayez.");
+      setAttendancePreview(null);
     } finally {
       setBusy(null);
     }
@@ -1203,7 +1616,189 @@ export function ExportButtons({
             </Button>
           </div>
         </div>
+
+        <div className="rounded-[14px] border border-[var(--stroke)] bg-[var(--bg)] p-4 lg:col-span-2">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-[var(--brand-ink)]">
+              Liste de présences
+            </h2>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Classe" className="mb-0">
+              <Select
+                value={attendanceClassroomId}
+                onChange={(e) => {
+                  setAttendanceClassroomId(e.target.value);
+                  setAttendancePreview(null);
+                }}
+              >
+                {classrooms.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field label="Période" className="mb-0">
+              <Select
+                value={attendancePeriod}
+                onChange={(e) => {
+                  setAttendancePeriod(e.target.value as AttendancePeriod);
+                  setAttendancePreview(null);
+                }}
+              >
+                <option value="day">Jour</option>
+                <option value="week">Semaine en cours</option>
+                <option value="month">Mois en cours</option>
+                <option value="year">Année en cours</option>
+              </Select>
+            </Field>
+
+            {attendancePeriod === "day" ? (
+              <Field label="Date" className="mb-0 sm:col-span-2">
+                <Input
+                  type="date"
+                  value={attendanceDate}
+                  onChange={(e) => {
+                    setAttendanceDate(e.target.value);
+                    setAttendancePreview(null);
+                  }}
+                />
+              </Field>
+            ) : null}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {attendancePeriod === "day" ? (
+              <Button
+                onClick={viewAttendance}
+                disabled={!attendanceClassroomId || busy !== null}
+              >
+                {busy === "attendance-view" ? "Chargement…" : "Afficher"}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={downloadAttendancePdf}
+                  disabled={!attendanceClassroomId || busy !== null}
+                >
+                  {busy === "attendance-pdf"
+                    ? "Préparation PDF..."
+                    : "Exporter en PDF"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={downloadAttendanceCsv}
+                  disabled={!attendanceClassroomId || busy !== null}
+                >
+                  {busy === "attendance-csv"
+                    ? "Préparation..."
+                    : "Exporter CSV"}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
       </section>
+
+      {attendancePreview && attendancePreview.period === "day" ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          onClick={() => setAttendancePreview(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Liste de présences"
+            className="flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-lg)] bg-white shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-[var(--stroke)] px-4 py-3 sm:px-5">
+              <div className="min-w-0">
+                <h2 className="m-0 text-base font-semibold text-[var(--brand-ink)]">
+                  Liste de présences
+                </h2>
+                <p className="m-0 mt-0.5 text-sm text-[var(--muted)]">
+                  {attendancePreview.classroom.name} ·{" "}
+                  {attendancePreview.rangeLabel}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] transition hover:bg-[var(--bg)] hover:text-[var(--text)]"
+                aria-label="Fermer"
+                onClick={() => setAttendancePreview(null)}
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden
+                >
+                  <path
+                    d="M6 6l12 12M18 6 6 18"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-4 py-4 sm:px-5">
+              {!attendancePreview.dayRows?.length ? (
+                <p className="text-sm text-[var(--muted)]">
+                  {attendancePreview.studentCount === 0
+                    ? "Aucun élève dans cette classe."
+                    : "Aucune séance ce jour-là."}
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[32rem] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--stroke)] text-xs uppercase tracking-wide text-[var(--muted)]">
+                        <th className="py-2 pr-3 font-semibold">Élève</th>
+                        <th className="px-2 py-2 font-semibold">Matière</th>
+                        <th className="px-2 py-2 font-semibold">Horaire</th>
+                        <th className="py-2 pl-2 font-semibold">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--stroke)]">
+                      {attendancePreview.dayRows.map((row) => (
+                        <tr key={`${row.sessionId}-${row.studentId}`}>
+                          <td className="py-2.5 pr-3 font-medium">
+                            {row.lastName} {row.firstName}
+                          </td>
+                          <td className="px-2 py-2.5">{row.subject}</td>
+                          <td className="px-2 py-2.5 tabular-nums text-[var(--muted)]">
+                            {row.timeRange}
+                          </td>
+                          <td className="py-2.5 pl-2">
+                            <span
+                              className={
+                                row.status === "absent"
+                                  ? "font-semibold text-[var(--danger)]"
+                                  : row.status === "late"
+                                    ? "font-semibold text-[var(--warn)]"
+                                    : "font-semibold text-[var(--ok)]"
+                              }
+                            >
+                              {statusLabel(row.status)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div
         className="pointer-events-none absolute"
@@ -1218,6 +1813,11 @@ export function ExportButtons({
         {cahier ? (
           <div ref={cahierRef}>
             <CahierDocument cahier={cahier} />
+          </div>
+        ) : null}
+        {attendance ? (
+          <div ref={attendanceRef}>
+            <AttendanceDocument data={attendance} />
           </div>
         ) : null}
       </div>

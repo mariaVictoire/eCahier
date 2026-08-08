@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
-import { Badge, Button } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { formatDateFr } from "@/lib/utils";
 import { formatHmRangeFr } from "@/lib/datetime";
 
@@ -187,12 +187,12 @@ export default function RoomPinPage() {
             <p className="text-xs text-[var(--warn)]">{data.note}</p>
           ) : null}
 
-          <div className="mt-auto text-center">
+          <div className="pt-2 text-center">
             <p className="text-sm font-semibold text-[var(--text)]">
               Saisissez votre PIN
             </p>
 
-            <div className="relative mx-auto mt-4 max-w-[18rem]">
+            <div className="relative mx-auto mt-3 max-w-[18rem]">
               <input
                 ref={pinRef}
                 value={pin}
@@ -253,11 +253,6 @@ export default function RoomPinPage() {
             >
               {loading ? "Vérification…" : "Continuer"}
             </Button>
-            {process.env.NODE_ENV !== "production" ? (
-              <div className="mt-2 flex justify-center">
-                <Badge tone="info">Démo PIN : 123456</Badge>
-              </div>
-            ) : null}
           </div>
         </div>
       ) : null}

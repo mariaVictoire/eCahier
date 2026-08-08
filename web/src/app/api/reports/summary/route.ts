@@ -198,6 +198,54 @@ export async function GET(request: NextRequest) {
   const validated = sessions.filter((item) => item.status === "validated").length;
   const draft = sessions.filter((item) => item.status === "draft").length;
 
+  const sessionIds = sessions.map((s) => s.id);
+  const classroomIds = Array.from(
+    new Set(sessions.map((s) => s.classroomId)),
+  );
+  const [attendanceRecords, students] = await Promise.all([
+    sessionIds.length === 0
+      ? Promise.resolve([] as { sessionId: string; studentId: string; status: string }[])
+      : prisma.attendanceRecord.findMany({
+          where: { sessionId: { in: sessionIds } },
+          select: { sessionId: true, studentId: true, status: true },
+        }),
+    classroomIds.length === 0
+      ? Promise.resolve([] as { id: string; classroomId: string }[])
+      : prisma.student.findMany({
+          where: {
+            schoolId,
+            classroomId: { in: classroomIds },
+            isActive: true,
+            deletedAt: null,
+          },
+          select: { id: true, classroomId: true },
+        }),
+  ]);
+
+  const studentsByClass = new Map<string, string[]>();
+  for (const student of students) {
+    const list = studentsByClass.get(student.classroomId) || [];
+    list.push(student.id);
+    studentsByClass.set(student.classroomId, list);
+  }
+  const statusByKey = new Map(
+    attendanceRecords.map((r) => [`${r.studentId}:${r.sessionId}`, r.status]),
+  );
+
+  let attendancePresent = 0;
+  let attendanceAbsent = 0;
+  let attendanceLate = 0;
+  for (const sessionItem of sessions) {
+    const classStudents = studentsByClass.get(sessionItem.classroomId) || [];
+    for (const studentId of classStudents) {
+      const status =
+        statusByKey.get(`${studentId}:${sessionItem.id}`) || "present";
+      if (status === "absent") attendanceAbsent += 1;
+      else if (status === "late") attendanceLate += 1;
+      else attendancePresent += 1;
+    }
+  }
+
   const byTeacher = Array.from(byTeacherMap.values()).sort(
     (a, b) => b.missing - a.missing || a.name.localeCompare(b.name, "fr"),
   );
@@ -221,6 +269,9 @@ export async function GET(request: NextRequest) {
       validated,
       draft,
       fillRatePercent: pct(done, expected),
+      attendancePresent,
+      attendanceAbsent,
+      attendanceLate,
     },
     byTeacher,
     byClassroom,
