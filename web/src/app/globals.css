@@ -74,6 +74,13 @@ textarea {
   font: inherit;
 }
 
+/* Évite le débordement des champs date sur mobile (min-width navigateur). */
+input[type="date"],
+input[type="time"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
 ::selection {
   background: var(--brand-soft);
   color: var(--brand-ink);

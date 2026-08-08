@@ -91,30 +91,34 @@ export default function HistoriquePage() {
 
       <form
         onSubmit={applyFilter}
-        className="surface mb-4 grid grid-cols-2 gap-3 p-3"
+        className="surface mb-4 space-y-3 overflow-hidden p-3"
       >
-        <Field label="Du">
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-          />
-        </Field>
-        <Field label="Au">
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-          />
-        </Field>
-        <div className="col-span-2 flex gap-2">
-          <Button type="submit" className="flex-1" size="sm">
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Du" className="mb-0 min-w-0">
+            <Input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="min-w-0 max-w-full px-2 text-[13px] tabular-nums"
+            />
+          </Field>
+          <Field label="Au" className="mb-0 min-w-0">
+            <Input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="min-w-0 max-w-full px-2 text-[13px] tabular-nums"
+            />
+          </Field>
+        </div>
+        <div className="flex gap-2">
+          <Button type="submit" className="min-w-0 flex-1" size="sm">
             Filtrer
           </Button>
           <Button
             type="button"
             variant="secondary"
-            className="flex-1"
+            className="min-w-0 flex-1"
             size="sm"
             onClick={clearFilter}
           >
@@ -139,24 +143,29 @@ export default function HistoriquePage() {
                     ? `/session/${item.id}/cahier`
                     : `/session/${item.id}/cahier?from=historique&hub=${id}`
                 }
-                className="block px-4 py-3 transition hover:bg-[var(--bg)]"
+                className="block px-3 py-3 transition hover:bg-[var(--bg)] sm:px-4"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[var(--text)]">
-                      {formatDateShortFr(item.sessionDate)} · {item.classroom} ·{" "}
-                      {item.subject}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-snug text-[var(--text)]">
+                      {formatDateShortFr(item.sessionDate)}
+                      <span className="font-normal text-[var(--muted)]">
+                        {" "}
+                        · {item.classroom} · {item.subject}
+                      </span>
                     </p>
                     <p className="mt-0.5 truncate text-sm text-[var(--muted)]">
                       {item.hasContent ? item.title : "Séance non renseignée"}
                     </p>
                   </div>
                   <Badge tone={item.status === "validated" ? "ok" : "warn"}>
-                    {item.isCurrent
-                      ? "Aujourd’hui"
-                      : item.status === "validated"
-                        ? "Validée"
-                        : "Brouillon"}
+                    <span className="shrink-0 whitespace-nowrap">
+                      {item.isCurrent
+                        ? "Aujourd’hui"
+                        : item.status === "validated"
+                          ? "Validée"
+                          : "Brouillon"}
+                    </span>
                   </Badge>
                 </div>
               </Link>
