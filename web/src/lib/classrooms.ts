@@ -21,7 +21,7 @@ export function levelRank(level: string): number {
 
 /**
  * Code salle auto : lettre de section + rang du niveau.
- * Ex. 6ème A → A1 · 6ème B → B1 · 5ème A → A2 · Terminale C → C7
+ * Ex. 6ème A → A1 · 5ème B → B2 · Terminale C → C7
  */
 export function roomCodeFromLevelAndLetter(level: string, letter: string): string {
   const rank = levelRank(level);
@@ -32,17 +32,24 @@ export function roomCodeFromLevelAndLetter(level: string, letter: string): strin
   return `${section}${rank}`;
 }
 
+/** Extrait la lettre de section depuis un nom (« Terminale C7 », « 6ème A », …). */
+export function sectionLetterFromClassroomName(name: string, level: string): string | null {
+  const prefix = `${level} `;
+  if (!name.startsWith(prefix)) return null;
+  const rest = name.slice(prefix.length).trim().toUpperCase();
+  const letter = rest.charAt(0);
+  return /^[A-Z]$/.test(letter) ? letter : null;
+}
+
 /** Prochaine lettre libre pour un niveau donné (A, B, C…). */
 export function nextSectionLetter(
   level: string,
   existingNames: string[],
 ): string {
   const used = new Set<string>();
-  const prefix = `${level} `;
   for (const name of existingNames) {
-    if (!name.startsWith(prefix) || name.length !== prefix.length + 1) continue;
-    const letter = name.slice(prefix.length).toUpperCase();
-    if (/^[A-Z]$/.test(letter)) used.add(letter);
+    const letter = sectionLetterFromClassroomName(name, level);
+    if (letter) used.add(letter);
   }
   for (const letter of LETTERS) {
     if (!used.has(letter)) return letter;
@@ -50,6 +57,7 @@ export function nextSectionLetter(
   throw new Error("Plus de lettres disponibles pour ce niveau");
 }
 
+/** Nom de classe affiché : niveau + code salle (ex. Terminale C7). */
 export function classroomName(level: string, letter: string) {
-  return `${level} ${letter}`;
+  return `${level} ${roomCodeFromLevelAndLetter(level, letter)}`;
 }

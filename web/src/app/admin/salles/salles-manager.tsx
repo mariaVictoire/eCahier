@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Field, PageTitle, Select, Textarea } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { CLASS_LEVELS, roomCodeFromLevelAndLetter } from "@/lib/classrooms";
+import { CLASS_LEVELS, classroomName, nextSectionLetter } from "@/lib/classrooms";
 import { buildLabeledSticker, printStickerImage } from "@/lib/qr-sticker";
 import { RoomQrCard } from "./room-qr-card";
 
@@ -43,33 +43,21 @@ export function SallesManager() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const previewName = useMemo(() => {
-    const used = new Set(
-      classrooms
-        .filter((c) => c.level === level)
-        .map((c) => {
-          const prefix = `${level} `;
-          if (!c.name.startsWith(prefix) || c.name.length !== prefix.length + 1) {
-            return null;
-          }
-          return c.name.slice(prefix.length).toUpperCase();
-        })
-        .filter(Boolean),
-    );
-    for (const L of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
-      if (!used.has(L)) return `${level} ${L}`;
+    try {
+      const letter = nextSectionLetter(
+        level,
+        classrooms.filter((c) => c.level === level).map((c) => c.name),
+      );
+      return classroomName(level, letter);
+    } catch {
+      return `${level} ?`;
     }
-    return `${level} ?`;
   }, [classrooms, level]);
 
   const previewCode = useMemo(() => {
-    const letter = previewName.split(" ").pop();
-    if (!letter || letter === "?") return "—";
-    try {
-      return roomCodeFromLevelAndLetter(level, letter);
-    } catch {
-      return "—";
-    }
-  }, [level, previewName]);
+    const match = previewName.match(/\s([A-Za-z]\d+)$/);
+    return match?.[1]?.toUpperCase() || "—";
+  }, [previewName]);
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setError("");

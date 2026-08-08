@@ -563,7 +563,7 @@ export default function EdtPage() {
                                     {s.subject.name}
                                   </p>
                                   <p className="mt-0.5 truncate text-[11px] text-[var(--muted)]">
-                                    {s.classroom.name} · {s.room.code}
+                                    {s.classroom.name}
                                   </p>
                                   <p className="truncate text-[11px] text-[var(--muted)]">
                                     {s.teacher.firstName} {s.teacher.lastName}
@@ -690,8 +690,7 @@ export default function EdtPage() {
                   ))}
                 </Select>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Chaque salle correspond à une classe précise (ex. C7 ·
-                  Terminale C), avec son propre emploi du temps.
+                  Nom de la classe = niveau + code salle (ex. Terminale C7).
                 </p>
               </Field>
               <Field label="Matière">

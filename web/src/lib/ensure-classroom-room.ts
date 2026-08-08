@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { roomCodeFromLevelAndLetter } from "@/lib/classrooms";
+import {
+  roomCodeFromLevelAndLetter,
+  sectionLetterFromClassroomName,
+} from "@/lib/classrooms";
 
 function makePublicId(code: string) {
   const slug = code
@@ -12,8 +15,12 @@ function makePublicId(code: string) {
 }
 
 function deriveRoomCode(name: string, level: string | null): string {
-  const letterMatch = name.match(/\s([A-Za-z])$/);
-  const letter = letterMatch?.[1]?.toUpperCase();
+  const embedded = name.match(/\s([A-Za-z]\d+)$/);
+  if (embedded) return embedded[1].toUpperCase();
+
+  const letter =
+    (level ? sectionLetterFromClassroomName(name, level) : null) ||
+    name.match(/\s([A-Za-z])$/)?.[1]?.toUpperCase();
   if (level && letter) {
     try {
       return roomCodeFromLevelAndLetter(level, letter);
@@ -29,7 +36,6 @@ function deriveRoomCode(name: string, level: string | null): string {
     .slice(0, 6);
   return slug || `C${Date.now().toString(36).slice(-4).toUpperCase()}`;
 }
-
 /** Garantit qu’une classe a une salle / QR dédié. */
 export async function ensureClassroomHomeRoom(classroom: {
   id: string;
