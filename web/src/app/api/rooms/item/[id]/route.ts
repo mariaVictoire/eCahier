@@ -1,17 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { audit, getSession } from "@/lib/auth";
-
-async function requireAdmin() {
-  const session = await getSession();
-  if (
-    !session?.schoolId ||
-    !["school_admin", "national_admin"].includes(session.role)
-  ) {
-    return null;
-  }
-  return session;
-}
+import { audit } from "@/lib/auth";
+import { resolveSchoolAdmin } from "@/lib/admin-context";
 
 function serializeRoom(
   room: {
@@ -41,14 +31,18 @@ export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+  const auth = await resolveSchoolAdmin();
+  if (!auth.ok) {
+    return NextResponse.json(
+      { message: auth.message, code: auth.code },
+      { status: auth.status },
+    );
   }
+  const { schoolId, userId } = auth.ctx;
 
   const { id } = await ctx.params;
   const existing = await prisma.room.findFirst({
-    where: { id, schoolId: session.schoolId!, deletedAt: null },
+    where: { id, schoolId, deletedAt: null },
   });
   if (!existing) {
     return NextResponse.json({ message: "QR introuvable" }, { status: 404 });
@@ -84,8 +78,8 @@ export async function PATCH(
         ? "room.activate"
         : "room.update",
     {
-      schoolId: session.schoolId,
-      actorId: session.sub,
+      schoolId,
+      actorId: userId,
       entityType: "room",
       entityId: room.id,
     },
@@ -99,14 +93,18 @@ export async function DELETE(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+  const auth = await resolveSchoolAdmin();
+  if (!auth.ok) {
+    return NextResponse.json(
+      { message: auth.message, code: auth.code },
+      { status: auth.status },
+    );
   }
+  const { schoolId, userId } = auth.ctx;
 
   const { id } = await ctx.params;
   const existing = await prisma.room.findFirst({
-    where: { id, schoolId: session.schoolId!, deletedAt: null },
+    where: { id, schoolId, deletedAt: null },
   });
   if (!existing) {
     return NextResponse.json({ message: "QR introuvable" }, { status: 404 });
@@ -118,8 +116,8 @@ export async function DELETE(
   });
 
   await audit("room.delete", {
-    schoolId: session.schoolId,
-    actorId: session.sub,
+    schoolId,
+    actorId: userId,
     entityType: "room",
     entityId: id,
   });

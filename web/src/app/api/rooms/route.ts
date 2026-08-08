@@ -1,23 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { audit, getSession } from "@/lib/auth";
+import { audit } from "@/lib/auth";
 import {
   CLASS_LEVELS,
   classroomName,
   nextSectionLetter,
   roomCodeFromLevelAndLetter,
 } from "@/lib/classrooms";
-
-async function requireAdmin() {
-  const session = await getSession();
-  if (
-    !session?.schoolId ||
-    !["school_admin", "national_admin"].includes(session.role)
-  ) {
-    return null;
-  }
-  return session;
-}
+import { resolveSchoolAdmin } from "@/lib/admin-context";
 
 function makePublicId(code: string) {
   const slug = code
@@ -30,18 +20,22 @@ function makePublicId(code: string) {
 }
 
 export async function GET() {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+  const auth = await resolveSchoolAdmin();
+  if (!auth.ok) {
+    return NextResponse.json(
+      { message: auth.message, code: auth.code },
+      { status: auth.status },
+    );
   }
+  const { schoolId } = auth.ctx;
 
   const year = await prisma.schoolYear.findFirst({
-    where: { schoolId: session.schoolId!, isCurrent: true },
+    where: { schoolId, isCurrent: true },
   });
 
   const [rooms, classrooms] = await Promise.all([
     prisma.room.findMany({
-      where: { schoolId: session.schoolId!, deletedAt: null },
+      where: { schoolId, deletedAt: null },
       include: {
         homeClassroom: { select: { id: true, name: true, level: true } },
       },
@@ -50,7 +44,7 @@ export async function GET() {
     year
       ? prisma.classroom.findMany({
           where: {
-            schoolId: session.schoolId!,
+            schoolId,
             schoolYearId: year.id,
             deletedAt: null,
           },
@@ -80,10 +74,14 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+  const auth = await resolveSchoolAdmin();
+  if (!auth.ok) {
+    return NextResponse.json(
+      { message: auth.message, code: auth.code },
+      { status: auth.status },
+    );
   }
+  const { schoolId, userId } = auth.ctx;
 
   const body = await req.json();
   const level = String(body.level || "").trim();
@@ -94,7 +92,7 @@ export async function POST(req: Request) {
   }
 
   const year = await prisma.schoolYear.findFirst({
-    where: { schoolId: session.schoolId!, isCurrent: true },
+    where: { schoolId, isCurrent: true },
   });
   if (!year) {
     return NextResponse.json(
@@ -105,7 +103,7 @@ export async function POST(req: Request) {
 
   const existingClasses = await prisma.classroom.findMany({
     where: {
-      schoolId: session.schoolId!,
+      schoolId,
       schoolYearId: year.id,
       level,
       deletedAt: null,
@@ -130,16 +128,15 @@ export async function POST(req: Request) {
   let code = roomCodeFromLevelAndLetter(level, letter);
 
   const codeClash = await prisma.room.findFirst({
-    where: { schoolId: session.schoolId!, code, deletedAt: null },
+    where: { schoolId, code, deletedAt: null },
   });
   if (codeClash) {
-    // Collision rare (salle orpheline / année précédente) → suffixe court
     code = `${code}${Date.now().toString(36).slice(-2)}`.toUpperCase();
   }
 
   const classroom = await prisma.classroom.create({
     data: {
-      schoolId: session.schoolId!,
+      schoolId,
       schoolYearId: year.id,
       name,
       level,
@@ -149,7 +146,7 @@ export async function POST(req: Request) {
 
   const room = await prisma.room.create({
     data: {
-      schoolId: session.schoolId!,
+      schoolId,
       code,
       label: name,
       building: notes,
@@ -159,15 +156,15 @@ export async function POST(req: Request) {
   });
 
   await audit("classroom.create", {
-    schoolId: session.schoolId,
-    actorId: session.sub,
+    schoolId,
+    actorId: userId,
     entityType: "classroom",
     entityId: classroom.id,
     meta: { name, level },
   });
   await audit("room.create", {
-    schoolId: session.schoolId,
-    actorId: session.sub,
+    schoolId,
+    actorId: userId,
     entityType: "room",
     entityId: room.id,
     meta: { code: room.code, label: name },

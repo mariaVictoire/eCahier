@@ -21,7 +21,7 @@ export async function resolveSchoolAdmin(): Promise<
     return {
       ok: false,
       status: 401,
-      message: "Non authentifié. Reconnectez-vous.",
+      message: "Non authentifié.",
       code: "NO_SESSION",
     };
   }
@@ -59,7 +59,7 @@ export async function resolveSchoolAdmin(): Promise<
       ok: false,
       status: 401,
       message:
-        "Compte introuvable (base réinitialisée ?). Déconnectez-vous puis reconnectez-vous avec admin@lycee.ga / admin123.",
+        "Compte introuvable (base réinitialisée ?). Déconnectez-vous puis reconnectez-vous.",
       code: "USER_NOT_FOUND",
     };
   }

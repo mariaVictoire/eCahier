@@ -37,8 +37,7 @@ export async function GET() {
     if (err instanceof Error && err.message === "SCHOOL_NOT_FOUND") {
       return NextResponse.json(
         {
-          message:
-            "Établissement introuvable. Reconnectez-vous (admin@lycee.ga / admin123).",
+          message: "Établissement introuvable.",
           code: "SCHOOL_NOT_FOUND",
         },
         { status: 401 },
@@ -165,8 +164,7 @@ export async function POST(req: Request) {
     if (err instanceof Error && err.message === "SCHOOL_NOT_FOUND") {
       return NextResponse.json(
         {
-          message:
-            "Établissement introuvable. Reconnectez-vous (admin@lycee.ga / admin123).",
+          message: "Établissement introuvable.",
           code: "SCHOOL_NOT_FOUND",
         },
         { status: 401 },

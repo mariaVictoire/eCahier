@@ -26,6 +26,7 @@ export function ClassesManager() {
   const [items, setItems] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [authExpired, setAuthExpired] = useState(false);
   const [level, setLevel] = useState<string>(CLASS_LEVELS[0]);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -38,27 +39,33 @@ export function ClassesManager() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    setAuthExpired(false);
     try {
       const res = await fetch("/api/classrooms");
       const text = await res.text();
       let data: {
         message?: string;
+        code?: string;
         items?: Classroom[];
       } = {};
       try {
         data = text ? JSON.parse(text) : {};
       } catch {
-        setError(
-          "Réponse serveur invalide. Rechargez la page ou reconnectez-vous.",
-        );
+        setError("Réponse serveur invalide. Réessayez dans un instant.");
         setItems([]);
         return;
       }
       if (!res.ok) {
+        const needsReconnect =
+          res.status === 401 ||
+          data.code === "NO_SESSION" ||
+          data.code === "USER_NOT_FOUND" ||
+          data.code === "SCHOOL_NOT_FOUND";
+        setAuthExpired(needsReconnect);
         setError(
           data.message ||
-            (res.status === 401
-              ? "Session expirée — reconnectez-vous (admin@lycee.ga)."
+            (needsReconnect
+              ? "Session expirée — reconnectez-vous."
               : "Chargement impossible"),
         );
         setItems([]);
@@ -66,9 +73,7 @@ export function ClassesManager() {
       }
       setItems(data.items || []);
     } catch {
-      setError(
-        "Chargement impossible. Vérifiez votre connexion, puis reconnectez-vous si besoin.",
-      );
+      setError("Chargement impossible. Vérifiez votre connexion puis réessayez.");
       setItems([]);
     } finally {
       setLoading(false);
@@ -215,15 +220,26 @@ export function ClassesManager() {
       {error ? (
         <div className="surface mb-3 border border-[var(--danger)]/30 bg-white px-4 py-3 text-sm text-[var(--danger)]">
           <p className="font-medium">{error}</p>
-          <button
-            type="button"
-            className="mt-2 text-sm font-semibold text-[var(--brand)] underline"
-            onClick={() => {
-              window.location.href = "/login";
-            }}
-          >
-            Se reconnecter
-          </button>
+          <div className="mt-2 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="text-sm font-semibold text-[var(--brand)] underline"
+              onClick={() => load()}
+            >
+              Réessayer
+            </button>
+            {authExpired ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[var(--brand)] underline"
+                onClick={() => {
+                  window.location.href = "/login";
+                }}
+              >
+                Se reconnecter
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
