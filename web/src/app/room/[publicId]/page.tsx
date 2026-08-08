@@ -206,9 +206,6 @@ export default function RoomPinPage() {
                 ? `Saisissez le PIN de ${teacherName}`
                 : "Saisissez votre PIN"}
             </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              6 chiffres — chaque créneau a son enseignant
-            </p>
 
             <div className="relative mx-auto mt-3 max-w-[18rem]">
               <input
