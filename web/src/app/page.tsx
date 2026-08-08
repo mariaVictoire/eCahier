@@ -79,7 +79,7 @@ export default function HomePage() {
           eCahier
         </h1>
         <p className="mt-3 text-base text-[var(--muted)]">
-          Cahier de textes simplifié
+          Cahier de textes numérique
         </p>
 
         <div className="mt-14 flex w-full max-w-sm flex-col gap-3">
