@@ -87,7 +87,9 @@ export async function GET(req: Request) {
         code: r.code,
         label: r.homeClassroom?.name || r.label,
         homeClassroomId: r.homeClassroomId,
-        name: r.homeClassroom?.name || r.label || r.code,
+        name: r.homeClassroom
+          ? `${r.homeClassroom.name} (${r.code})`
+          : `${r.label} (${r.code})`,
       })),
       subjects,
       teachers,

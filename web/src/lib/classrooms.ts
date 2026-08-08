@@ -13,26 +13,48 @@ export type ClassLevel = (typeof CLASS_LEVELS)[number];
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-/** Rang du niveau pour le code salle : 6ème→1, 5ème→2, … Terminale→7. */
+/** Initiale du niveau pour le code salle : 6ème→6 … Terminale→T. */
+export function levelCodeInitial(level: string): string {
+  switch (level) {
+    case "6ème":
+      return "6";
+    case "5ème":
+      return "5";
+    case "4ème":
+      return "4";
+    case "3ème":
+      return "3";
+    case "2nde":
+      return "2";
+    case "1ère":
+      return "1";
+    case "Terminale":
+      return "T";
+    default:
+      return "";
+  }
+}
+
+/** @deprecated Prefer levelCodeInitial — conservé pour compat. */
 export function levelRank(level: string): number {
   const idx = (CLASS_LEVELS as readonly string[]).indexOf(level);
   return idx >= 0 ? idx + 1 : 0;
 }
 
 /**
- * Code salle auto : lettre de section + rang du niveau.
- * Ex. 6ème A → A1 · 5ème B → B2 · Terminale C → C7
+ * Code salle : initiale du niveau + lettre de section.
+ * Ex. 6ème B → 6B · Terminale C → TC · 1ère A → 1A
  */
 export function roomCodeFromLevelAndLetter(level: string, letter: string): string {
-  const rank = levelRank(level);
+  const initial = levelCodeInitial(level);
   const section = letter.trim().toUpperCase().slice(0, 1);
-  if (!rank || !/^[A-Z]$/.test(section)) {
+  if (!initial || !/^[A-Z]$/.test(section)) {
     throw new Error("Niveau ou lettre de section invalide");
   }
-  return `${section}${rank}`;
+  return `${initial}${section}`;
 }
 
-/** Extrait la lettre de section depuis un nom (« Terminale C7 », « 6ème A », …). */
+/** Extrait la lettre de section depuis un nom (« Terminale C », « 6ème A », …). */
 export function sectionLetterFromClassroomName(name: string, level: string): string | null {
   const prefix = `${level} `;
   if (!name.startsWith(prefix)) return null;
@@ -57,7 +79,7 @@ export function nextSectionLetter(
   throw new Error("Plus de lettres disponibles pour ce niveau");
 }
 
-/** Nom de classe affiché : niveau + code salle (ex. Terminale C7). */
+/** Nom de classe : niveau + lettre (ex. Terminale C, 6ème B). */
 export function classroomName(level: string, letter: string) {
-  return `${level} ${roomCodeFromLevelAndLetter(level, letter)}`;
+  return `${level} ${letter.trim().toUpperCase().slice(0, 1)}`;
 }

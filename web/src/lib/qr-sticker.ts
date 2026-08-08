@@ -2,7 +2,7 @@
 export async function buildLabeledSticker(opts: {
   qrDataUrl: string;
   title: string;
-  /** Code court à saisir manuellement (ex. A1) */
+  /** Code court à saisir manuellement (ex. 6B, TC) */
   code?: string;
   subtitle?: string;
 }): Promise<string> {

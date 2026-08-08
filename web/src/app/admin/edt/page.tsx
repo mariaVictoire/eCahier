@@ -153,7 +153,7 @@ export default function EdtPage() {
   const [addingSubject, setAddingSubject] = useState(false);
   const [subjectMsg, setSubjectMsg] = useState("");
   const [csv, setCsv] = useState(
-    "weekday;startsAt;endsAt;roomCode;classroom;subjectCode;teacherEmail\nlundi;08:00;09:00;A4;3ème A;MATH;obame@lycee.ga",
+    "weekday;startsAt;endsAt;roomCode;classroom;subjectCode;teacherEmail\nlundi;08:00;09:00;3A;3ème A;MATH;obame@lycee.ga",
   );
   const [importMsg, setImportMsg] = useState("");
 
@@ -563,7 +563,7 @@ export default function EdtPage() {
                                     {s.subject.name}
                                   </p>
                                   <p className="mt-0.5 truncate text-[11px] text-[var(--muted)]">
-                                    {s.classroom.name}
+                                    {s.classroom.name} · {s.room.code}
                                   </p>
                                   <p className="truncate text-[11px] text-[var(--muted)]">
                                     {s.teacher.firstName} {s.teacher.lastName}
@@ -690,7 +690,7 @@ export default function EdtPage() {
                   ))}
                 </Select>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  Nom de la classe = niveau + code salle (ex. Terminale C7).
+                  Classe : Terminale C · Code salle : TC (initiale + lettre).
                 </p>
               </Field>
               <Field label="Matière">

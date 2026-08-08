@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Field, PageTitle, Select, Textarea } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { CLASS_LEVELS, classroomName, nextSectionLetter } from "@/lib/classrooms";
+import { CLASS_LEVELS, classroomName, nextSectionLetter, roomCodeFromLevelAndLetter } from "@/lib/classrooms";
 import { buildLabeledSticker, printStickerImage } from "@/lib/qr-sticker";
 import { RoomQrCard } from "./room-qr-card";
 
@@ -55,9 +55,14 @@ export function SallesManager() {
   }, [classrooms, level]);
 
   const previewCode = useMemo(() => {
-    const match = previewName.match(/\s([A-Za-z]\d+)$/);
-    return match?.[1]?.toUpperCase() || "—";
-  }, [previewName]);
+    const letter = previewName.split(/\s+/).pop();
+    if (!letter || letter === "?") return "—";
+    try {
+      return roomCodeFromLevelAndLetter(level, letter);
+    } catch {
+      return "—";
+    }
+  }, [level, previewName]);
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setError("");
