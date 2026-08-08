@@ -178,10 +178,6 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
       slot: candidates[0],
       candidates,
       resolvedAt: at.toISOString(),
-      note:
-        catchUpSlots.length === 1
-          ? "Cours non saisi — rattrapage possible."
-          : undefined,
     };
   }
 
