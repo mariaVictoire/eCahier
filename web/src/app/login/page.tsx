@@ -63,7 +63,7 @@ export default function LoginPage() {
         return;
       }
       window.location.href =
-        data.user.role === "national_admin" ? "/national" : "/admin/classes";
+        data.user.role === "national_admin" ? "/national" : "/admin";
     } catch {
       setError("Connexion impossible");
       setLoading(false);
