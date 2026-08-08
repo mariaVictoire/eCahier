@@ -108,12 +108,13 @@ export async function POST(req: Request) {
       );
     }
     const left = PIN_MAX_ATTEMPTS - nextAttempts;
+    const teacherHint = shortDisplayName(expected);
     return NextResponse.json(
       {
         message:
           left > 0
-            ? `Code PIN incorrect (${left} essai${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""})`
-            : "Code PIN incorrect",
+            ? `PIN incorrect pour ${teacherHint} (${left} essai${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""})`
+            : `PIN incorrect pour ${teacherHint}`,
       },
       { status: 401 },
     );

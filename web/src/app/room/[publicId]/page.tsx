@@ -14,6 +14,8 @@ type Slot = {
   classroom: { name: string };
   subject: { name: string };
   expectedTeacher: { displayName: string };
+  catchUp?: boolean;
+  alreadyOpened?: boolean;
 };
 
 type Resolved = {
@@ -63,6 +65,7 @@ export default function RoomPinPage() {
   }, [data, slotId]);
 
   const schoolName = data?.school?.name?.trim() || "";
+  const teacherName = activeSlot?.expectedTeacher.displayName || "";
 
   function setPinDigits(raw: string) {
     setPin(raw.replace(/\D/g, "").slice(0, 6));
@@ -121,8 +124,8 @@ export default function RoomPinPage() {
                 {formatDateFr(new Date())}
               </p>
               <p className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold leading-snug">
-                {activeSlot
-                  ? `Bienvenue, professeur ${activeSlot.expectedTeacher.displayName}`
+                {teacherName
+                  ? `Bienvenue, professeur ${teacherName}`
                   : "Bienvenue"}
               </p>
               {schoolName ? (
@@ -137,8 +140,13 @@ export default function RoomPinPage() {
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => setSlotId(c.id)}
-                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                  onClick={() => {
+                    setSlotId(c.id);
+                    setError("");
+                    setPin("");
+                    pinRef.current?.focus();
+                  }}
+                  className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm transition ${
                     slotId === c.id
                       ? "border-[var(--brand)] bg-[var(--brand-soft)]"
                       : "border-[var(--stroke)] bg-white"
@@ -151,6 +159,10 @@ export default function RoomPinPage() {
                     {" "}
                     · {c.classroom.name} · {c.subject.name}
                   </span>
+                  <span className="mt-1 block text-xs font-medium text-[var(--brand-ink)]">
+                    {c.expectedTeacher.displayName}
+                    {c.catchUp ? " · À rattraper" : ""}
+                  </span>
                 </button>
               ))}
             </div>
@@ -160,6 +172,7 @@ export default function RoomPinPage() {
             <dl className="surface divide-y divide-[var(--stroke)] px-4">
               {(
                 [
+                  ["Enseignant", activeSlot.expectedTeacher.displayName],
                   ["Classe", activeSlot.classroom.name],
                   ["Matière", activeSlot.subject.name],
                   [
@@ -189,7 +202,12 @@ export default function RoomPinPage() {
 
           <div className="pt-2 text-center">
             <p className="text-sm font-semibold text-[var(--text)]">
-              Saisissez votre PIN
+              {teacherName
+                ? `Saisissez le PIN de ${teacherName}`
+                : "Saisissez votre PIN"}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              6 chiffres — chaque créneau a son enseignant
             </p>
 
             <div className="relative mx-auto mt-3 max-w-[18rem]">
@@ -210,7 +228,7 @@ export default function RoomPinPage() {
               />
               <button
                 type="button"
-                className="flex w-full justify-center gap-2.5"
+                className="relative z-0 flex w-full justify-center gap-2.5"
                 onClick={() => pinRef.current?.focus()}
               >
                 {Array.from({ length: 6 }).map((_, i) => {
@@ -229,9 +247,7 @@ export default function RoomPinPage() {
                     >
                       <span
                         className={
-                          filled
-                            ? "text-[var(--text)]"
-                            : "text-transparent"
+                          filled ? "text-[var(--text)]" : "text-transparent"
                         }
                       >
                         •

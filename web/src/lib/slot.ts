@@ -8,6 +8,9 @@ import {
 import { isClosedSchoolDay } from "./holidays";
 import { shortDisplayName } from "./person-name";
 
+/** Nombre max de cours non saisis proposés hors créneau exact. */
+export const CATCHUP_MAX = 2;
+
 export function getWeekday(date: Date) {
   return getWeekdayGabon(date);
 }
@@ -31,6 +34,11 @@ export function isInWindow(
   const start = toMin(startsAt) - toleranceMin;
   const end = toMin(endsAt) + toleranceMin;
   return now >= start && now <= end;
+}
+
+function toMin(hm: string) {
+  const [h, m] = hm.split(":").map(Number);
+  return h * 60 + m;
 }
 
 export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) {
@@ -79,6 +87,7 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
 
   const weekday = getWeekday(at);
   const nowHm = formatTime(at);
+  const dayStart = startOfDayGabon(at);
 
   const slots = await prisma.timetableSlot.findMany({
     where: {
@@ -96,11 +105,19 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
     orderBy: { startsAt: "asc" },
   });
 
-  const matching = slots.filter((s) =>
-    isInWindow(nowHm, s.startsAt, s.endsAt),
+  const sessionsToday = await prisma.lessonSession.findMany({
+    where: {
+      roomId: room.id,
+      sessionDate: dayStart,
+      deletedAt: null,
+    },
+    select: { slotId: true },
+  });
+  const openedSlotIds = new Set(
+    sessionsToday.map((s) => s.slotId).filter((id): id is string => !!id),
   );
 
-  const mapSlot = (s: (typeof slots)[number]) => ({
+  const mapSlot = (s: (typeof slots)[number], catchUp = false) => ({
     id: s.id,
     startsAt: s.startsAt,
     endsAt: s.endsAt,
@@ -116,7 +133,13 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
     classroomId: s.classroomId,
     subjectId: s.subjectId,
     teacherId: s.teacherId,
+    catchUp,
+    alreadyOpened: openedSlotIds.has(s.id),
   });
+
+  const matching = slots.filter((s) =>
+    isInWindow(nowHm, s.startsAt, s.endsAt),
+  );
 
   if (matching.length === 1) {
     return {
@@ -133,33 +156,56 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
       room: roomInfo,
       school: schoolInfo,
       slot: null,
-      candidates: matching.map(mapSlot),
+      candidates: matching.map((s) => mapSlot(s)),
       resolvedAt: at.toISOString(),
+      note: "Plusieurs créneaux en cours — choisissez le vôtre.",
     };
   }
 
-  // Fallback: créneau le plus proche dans le temps
-  const toMin = (hm: string) => {
-    const [h, m] = hm.split(":").map(Number);
-    return h * 60 + m;
-  };
+  // Hors créneau : proposer jusqu’à CATCHUP_MAX cours déjà terminés et non saisis.
   const nowMin = toMin(nowHm);
-  const ranked = [...slots].sort((a, b) => {
-    const da = Math.abs(toMin(a.startsAt) - nowMin);
-    const db = Math.abs(toMin(b.startsAt) - nowMin);
-    return da - db;
-  });
-  const candidates = ranked.map(mapSlot);
+  const catchUpSlots = slots
+    .filter((s) => toMin(s.endsAt) < nowMin)
+    .filter((s) => !openedSlotIds.has(s.id))
+    .sort((a, b) => toMin(b.endsAt) - toMin(a.endsAt))
+    .slice(0, CATCHUP_MAX);
+
+  if (catchUpSlots.length > 0) {
+    const candidates = catchUpSlots.map((s) => mapSlot(s, true));
+    return {
+      room: roomInfo,
+      school: schoolInfo,
+      slot: candidates[0],
+      candidates,
+      resolvedAt: at.toISOString(),
+      note:
+        catchUpSlots.length === 1
+          ? "Cours non saisi — rattrapage possible."
+          : `Jusqu’à ${CATCHUP_MAX} cours non saisis — choisissez le vôtre puis saisissez le PIN de l’enseignant indiqué.`,
+    };
+  }
+
+  // Rien à rattraper : indiquer le prochain créneau du jour s’il existe.
+  const upcoming = slots.filter((s) => toMin(s.startsAt) > nowMin);
+  if (upcoming.length > 0) {
+    const next = mapSlot(upcoming[0]);
+    return {
+      room: roomInfo,
+      school: schoolInfo,
+      slot: next,
+      candidates: [next],
+      resolvedAt: at.toISOString(),
+      note: "Aucun cours à rattraper. Prochain créneau affiché (pas encore commencé).",
+    };
+  }
+
   return {
     room: roomInfo,
     school: schoolInfo,
-    slot: candidates[0] ?? null,
-    candidates,
+    slot: null,
+    candidates: [] as ReturnType<typeof mapSlot>[],
     resolvedAt: at.toISOString(),
-    note:
-      matching.length === 0 && candidates.length > 0
-        ? "Aucun créneau exact — créneau le plus proche proposé."
-        : undefined,
+    note: "Aucun créneau à saisir pour cette salle aujourd’hui.",
   };
 }
 
