@@ -54,6 +54,7 @@ export async function GET(req: Request) {
     }),
     prisma.room.findMany({
       where: { schoolId: session.schoolId!, deletedAt: null, isActive: true },
+      include: { homeClassroom: { select: { id: true, name: true } } },
       orderBy: { code: "asc" },
     }),
     prisma.subject.findMany({
@@ -81,7 +82,13 @@ export async function GET(req: Request) {
       : null,
     meta: {
       classrooms,
-      rooms,
+      rooms: rooms.map((r) => ({
+        id: r.id,
+        code: r.code,
+        label: r.homeClassroom?.name || r.label,
+        homeClassroomId: r.homeClassroomId,
+        name: `${r.code} · ${r.homeClassroom?.name || r.label}`,
+      })),
       subjects,
       teachers,
       schoolYearId: year?.id ?? null,

@@ -164,7 +164,7 @@ async function main() {
     { name: "3ème A", level: "3ème", roomCode: "A4", building: "Bloc B", publicId: "rm_a4_demo", studentCount: 20 },
     { name: "2nde B", level: "2nde", roomCode: "B5", building: "Bloc B", publicId: "rm_b5_demo", studentCount: 18 },
     { name: "1ère C", level: "1ère", roomCode: "B6", building: "Bloc C", publicId: "rm_b6_demo", studentCount: 15 },
-    { name: "Tle D", level: "Terminale", roomCode: "C7", building: "Bloc C", publicId: "rm_c7_demo", studentCount: 14 },
+    { name: "Terminale C", level: "Terminale", roomCode: "C7", building: "Bloc C", publicId: "rm_c7_demo", studentCount: 14 },
   ];
 
   const classrooms: { id: string; name: string; roomId: string }[] = [];
@@ -236,9 +236,9 @@ async function main() {
       { className: "2nde B", subjectCode: "ANG", teacherId: essono.id, period: 5 },
       { className: "1ère C", subjectCode: "PHILO", teacherId: nzue.id, period: 2 },
       { className: "1ère C", subjectCode: "MATH", teacherId: obame.id, period: 5 },
-      { className: "Tle D", subjectCode: "PC", teacherId: mintsa.id, period: 0 },
-      { className: "Tle D", subjectCode: "PHILO", teacherId: nzue.id, period: 3 },
-      { className: "Tle D", subjectCode: "EPS", teacherId: ndong.id, period: 5 },
+      { className: "Terminale C", subjectCode: "PC", teacherId: mintsa.id, period: 0 },
+      { className: "Terminale C", subjectCode: "PHILO", teacherId: nzue.id, period: 3 },
+      { className: "Terminale C", subjectCode: "EPS", teacherId: ndong.id, period: 5 },
     ],
     tue: [
       { className: "6ème A", subjectCode: "SVT", teacherId: mintsa.id, period: 0 },
@@ -259,8 +259,8 @@ async function main() {
       { className: "1ère C", subjectCode: "HG", teacherId: essono.id, period: 0 },
       { className: "1ère C", subjectCode: "PC", teacherId: mintsa.id, period: 3 },
       { className: "1ère C", subjectCode: "FR", teacherId: nzue.id, period: 5 },
-      { className: "Tle D", subjectCode: "MATH", teacherId: obame.id, period: 2 },
-      { className: "Tle D", subjectCode: "ANG", teacherId: essono.id, period: 4 },
+      { className: "Terminale C", subjectCode: "MATH", teacherId: obame.id, period: 2 },
+      { className: "Terminale C", subjectCode: "ANG", teacherId: essono.id, period: 4 },
     ],
     wed: [
       { className: "6ème A", subjectCode: "MATH", teacherId: obame.id, period: 1 },
@@ -276,9 +276,9 @@ async function main() {
       { className: "2nde B", subjectCode: "PC", teacherId: mintsa.id, period: 4 },
       { className: "1ère C", subjectCode: "MATH", teacherId: obame.id, period: 2 },
       { className: "1ère C", subjectCode: "EPS", teacherId: ndong.id, period: 4 },
-      { className: "Tle D", subjectCode: "PHILO", teacherId: nzue.id, period: 1 },
-      { className: "Tle D", subjectCode: "SVT", teacherId: mintsa.id, period: 3 },
-      { className: "Tle D", subjectCode: "FR", teacherId: nzue.id, period: 5 },
+      { className: "Terminale C", subjectCode: "PHILO", teacherId: nzue.id, period: 1 },
+      { className: "Terminale C", subjectCode: "SVT", teacherId: mintsa.id, period: 3 },
+      { className: "Terminale C", subjectCode: "FR", teacherId: nzue.id, period: 5 },
     ],
     thu: [
       { className: "6ème A", subjectCode: "HG", teacherId: essono.id, period: 0 },
@@ -298,8 +298,8 @@ async function main() {
       { className: "1ère C", subjectCode: "ANG", teacherId: essono.id, period: 1 },
       { className: "1ère C", subjectCode: "PHILO", teacherId: nzue.id, period: 3 },
       { className: "1ère C", subjectCode: "PC", teacherId: mintsa.id, period: 5 },
-      { className: "Tle D", subjectCode: "MATH", teacherId: obame.id, period: 2 },
-      { className: "Tle D", subjectCode: "HG", teacherId: essono.id, period: 4 },
+      { className: "Terminale C", subjectCode: "MATH", teacherId: obame.id, period: 2 },
+      { className: "Terminale C", subjectCode: "HG", teacherId: essono.id, period: 4 },
     ],
     fri: [
       { className: "6ème A", subjectCode: "MATH", teacherId: obame.id, period: 0 },
@@ -320,9 +320,9 @@ async function main() {
       { className: "1ère C", subjectCode: "FR", teacherId: nzue.id, period: 0 },
       { className: "1ère C", subjectCode: "MATH", teacherId: obame.id, period: 3 },
       { className: "1ère C", subjectCode: "SVT", teacherId: mintsa.id, period: 4 },
-      { className: "Tle D", subjectCode: "PC", teacherId: mintsa.id, period: 1 },
-      { className: "Tle D", subjectCode: "PHILO", teacherId: nzue.id, period: 2 },
-      { className: "Tle D", subjectCode: "EPS", teacherId: ndong.id, period: 3 },
+      { className: "Terminale C", subjectCode: "PC", teacherId: mintsa.id, period: 1 },
+      { className: "Terminale C", subjectCode: "PHILO", teacherId: nzue.id, period: 2 },
+      { className: "Terminale C", subjectCode: "EPS", teacherId: ndong.id, period: 3 },
     ],
     sat: [
       { className: "3ème A", subjectCode: "MATH", teacherId: obame.id, period: 0 },
@@ -330,8 +330,8 @@ async function main() {
       { className: "2nde B", subjectCode: "PC", teacherId: mintsa.id, period: 0 },
       { className: "2nde B", subjectCode: "HG", teacherId: essono.id, period: 1 },
       { className: "1ère C", subjectCode: "PHILO", teacherId: nzue.id, period: 0 },
-      { className: "Tle D", subjectCode: "MATH", teacherId: obame.id, period: 1 },
-      { className: "Tle D", subjectCode: "ANG", teacherId: essono.id, period: 2 },
+      { className: "Terminale C", subjectCode: "MATH", teacherId: obame.id, period: 1 },
+      { className: "Terminale C", subjectCode: "ANG", teacherId: essono.id, period: 2 },
       { className: "4ème A", subjectCode: "SVT", teacherId: mintsa.id, period: 2 },
     ],
   };

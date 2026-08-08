@@ -47,6 +47,7 @@ type Entity = {
   name?: string;
   code?: string;
   label?: string;
+  homeClassroomId?: string | null;
   firstName?: string;
   lastName?: string;
   email?: string | null;
@@ -245,21 +246,28 @@ export default function EdtPage() {
     );
   }
 
+  function roomIdForClassroom(classId: string) {
+    const linked = meta?.rooms.find((r) => r.homeClassroomId === classId);
+    if (linked) return linked.id;
+    return meta?.rooms[0]?.id || "";
+  }
+
   function openCreate(
     weekday?: string,
     startsAt?: string,
     endsAt?: string,
   ) {
-    const base = emptyForm(classroomId || meta?.classrooms[0]?.id || "");
+    const classId = classroomId || meta?.classrooms[0]?.id || "";
+    const base = emptyForm(classId);
     setForm({
       ...base,
       weekday: weekday || "mon",
       startsAt: startsAt || base.startsAt,
       endsAt: endsAt || base.endsAt,
-      roomId: meta?.rooms[0]?.id || "",
+      roomId: roomIdForClassroom(classId),
       subjectId: meta?.subjects[0]?.id || "",
       teacherId: meta?.teachers[0]?.id || "",
-      classroomId: classroomId || meta?.classrooms[0]?.id || "",
+      classroomId: classId,
     });
   }
 
@@ -650,9 +658,14 @@ export default function EdtPage() {
               <Field label="Classe">
                 <Select
                   value={form.classroomId}
-                  onChange={(e) =>
-                    setForm({ ...form, classroomId: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const nextClassId = e.target.value;
+                    setForm({
+                      ...form,
+                      classroomId: nextClassId,
+                      roomId: roomIdForClassroom(nextClassId),
+                    });
+                  }}
                   required
                 >
                   {meta?.classrooms.map((c) => (
@@ -661,6 +674,25 @@ export default function EdtPage() {
                     </option>
                   ))}
                 </Select>
+              </Field>
+              <Field label="Salle">
+                <Select
+                  value={form.roomId}
+                  onChange={(e) =>
+                    setForm({ ...form, roomId: e.target.value })
+                  }
+                  required
+                >
+                  {meta?.rooms.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name || `${r.code} · ${r.label}`}
+                    </option>
+                  ))}
+                </Select>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Chaque salle correspond à une classe précise (ex. C7 ·
+                  Terminale C), avec son propre emploi du temps.
+                </p>
               </Field>
               <Field label="Matière">
                 <Select
