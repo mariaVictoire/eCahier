@@ -23,6 +23,7 @@ model School {
   subjects    Subject[]
   slots       TimetableSlot[]
   sessions    LessonSession[]
+  students    Student[]
   auditLogs   AuditLog[]
 }
 
@@ -83,6 +84,7 @@ model Classroom {
   schoolYear SchoolYear      @relation(fields: [schoolYearId], references: [id])
   slots      TimetableSlot[]
   sessions   LessonSession[]
+  students   Student[]
   homeRooms  Room[]
 
   @@unique([schoolId, schoolYearId, name])
@@ -181,11 +183,54 @@ model LessonSession {
   room       Room           @relation(fields: [roomId], references: [id])
   classroom  Classroom      @relation(fields: [classroomId], references: [id])
   subject    Subject        @relation(fields: [subjectId], references: [id])
-  teacher    User           @relation(fields: [teacherId], references: [id])
-  slot       TimetableSlot? @relation(fields: [slotId], references: [id])
+  teacher     User               @relation(fields: [teacherId], references: [id])
+  slot        TimetableSlot?     @relation(fields: [slotId], references: [id])
+  attendances AttendanceRecord[]
 
+  @@unique([slotId, sessionDate])
   @@index([teacherId, sessionDate])
   @@index([classroomId, sessionDate])
+  @@index([roomId, sessionDate])
+}
+
+/// Élève inscrit dans une classe (année en cours).
+model Student {
+  id           String    @id @default(cuid())
+  schoolId     String
+  classroomId  String
+  firstName    String
+  lastName     String
+  /// Matricule optionnel
+  studentCode  String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  school      School             @relation(fields: [schoolId], references: [id])
+  classroom   Classroom          @relation(fields: [classroomId], references: [id])
+  attendances AttendanceRecord[]
+
+  @@index([classroomId, lastName, firstName])
+  @@index([schoolId])
+}
+
+/// Feuille de présence d’une séance.
+/// Pas d’enregistrement (ou status present) = présent.
+/// status: present | absent | late
+model AttendanceRecord {
+  id        String   @id @default(cuid())
+  sessionId String
+  studentId String
+  status    String   @default("present")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session LessonSession @relation(fields: [sessionId], references: [id])
+  student Student       @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
 }
 
 model AuditLog {

@@ -1,15 +1,17 @@
-/** Construit une étiquette PNG (classe + QR) dans le navigateur. */
+/** Construit une étiquette PNG (classe + code + QR) dans le navigateur. */
 export async function buildLabeledSticker(opts: {
   qrDataUrl: string;
   title: string;
+  /** Code court à saisir manuellement (ex. A1) */
+  code?: string;
   subtitle?: string;
 }): Promise<string> {
   await document.fonts?.ready?.catch?.(() => undefined);
 
   const width = 520;
-  const headerH = 88;
-  const footerH = 64;
-  const pad = 40;
+  const headerH = opts.code ? 108 : 88;
+  const footerH = 72;
+  const pad = 36;
   const qrSize = 300;
   const height = headerH + pad + qrSize + pad + footerH;
 
@@ -33,10 +35,19 @@ export async function buildLabeledSticker(opts: {
   ctx.fillRect(0, headerH - 5, width, 5);
 
   ctx.fillStyle = "#FFFFFF";
-  ctx.font = `600 40px ${sans}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(opts.title, width / 2, headerH / 2 - 2, width - 48);
+
+  if (opts.code) {
+    ctx.font = `600 28px ${sans}`;
+    ctx.fillText(opts.title, width / 2, headerH / 2 - 16, width - 48);
+    ctx.font = `700 22px ${sans}`;
+    ctx.fillStyle = "#C8A84B";
+    ctx.fillText(`Code : ${opts.code}`, width / 2, headerH / 2 + 22, width - 48);
+  } else {
+    ctx.font = `600 40px ${sans}`;
+    ctx.fillText(opts.title, width / 2, headerH / 2 - 2, width - 48);
+  }
 
   const img = await loadImage(opts.qrDataUrl);
   ctx.drawImage(img, (width - qrSize) / 2, headerH + pad, qrSize, qrSize);
@@ -45,7 +56,7 @@ export async function buildLabeledSticker(opts: {
   ctx.font = `500 15px ${sans}`;
   ctx.textBaseline = "alphabetic";
   ctx.fillText(
-    "Scannez pour le cahier de textes",
+    "Scannez le QR — ou saisissez le code",
     width / 2,
     height - 28,
     width - 48,
@@ -55,7 +66,7 @@ export async function buildLabeledSticker(opts: {
 }
 
 export function printStickerImage(stickerSrc: string, title: string) {
-  const win = window.open("", "_blank", "noopener,noreferrer,width=480,height=640");
+  const win = window.open("", "_blank", "noopener,noreferrer");
   if (!win) return;
   win.document.write(`<!doctype html>
 <html lang="fr">
@@ -64,8 +75,9 @@ export function printStickerImage(stickerSrc: string, title: string) {
   <title>Étiquette ${title}</title>
   <style>
     @page { margin: 12mm; }
-    body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    img { width: 90mm; max-width: 100%; height: auto; }
+    html, body { margin: 0; min-height: 100%; }
+    body { display: flex; justify-content: center; align-items: center; background: #f4f5f7; }
+    img { width: min(90mm, 92vw); height: auto; background: #fff; }
   </style>
 </head>
 <body>

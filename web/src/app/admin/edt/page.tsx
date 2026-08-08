@@ -152,7 +152,7 @@ export default function EdtPage() {
   const [addingSubject, setAddingSubject] = useState(false);
   const [subjectMsg, setSubjectMsg] = useState("");
   const [csv, setCsv] = useState(
-    "weekday;startsAt;endsAt;roomCode;classroom;subjectCode;teacherEmail\nlundi;08:00;09:00;B12;3ème A;MATH;obame@lycee.ga",
+    "weekday;startsAt;endsAt;roomCode;classroom;subjectCode;teacherEmail\nlundi;08:00;09:00;A4;3ème A;MATH;obame@lycee.ga",
   );
   const [importMsg, setImportMsg] = useState("");
 

@@ -17,6 +17,8 @@ type Dashboard = {
     fillRatePercent: number;
     validated: number;
     draft: number;
+    closed?: boolean;
+    closedReason?: string | null;
   };
   week: {
     sessionsDone: number;
@@ -105,12 +107,56 @@ function KpiCard({
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/dashboard/school")
-      .then((r) => r.json())
-      .then(setData);
+      .then(async (r) => {
+        const text = await r.text();
+        let body: unknown = null;
+        if (text) {
+          try {
+            body = JSON.parse(text);
+          } catch {
+            body = null;
+          }
+        }
+        if (!r.ok) {
+          const message =
+            body &&
+            typeof body === "object" &&
+            "message" in body &&
+            typeof (body as { message: unknown }).message === "string"
+              ? (body as { message: string }).message
+              : "Impossible de charger le tableau de bord";
+          throw new Error(message);
+        }
+        return body as Dashboard;
+      })
+      .then((payload) => {
+        if (!cancelled) setData(payload);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Erreur de chargement");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  if (error) {
+    return (
+      <div className="surface px-4 py-6 text-sm text-[var(--danger)]">
+        <p className="font-medium">{error}</p>
+        <p className="mt-2 text-[var(--muted)]">
+          Essayez de vous déconnecter puis de vous reconnecter.
+        </p>
+      </div>
+    );
+  }
 
   if (!data) {
     return <p className="text-sm text-[var(--muted)]">Chargement…</p>;
@@ -131,14 +177,26 @@ export default function AdminDashboardPage() {
       <div className="surface mb-5 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div>
           <p className="capitalize text-sm font-medium">{dateLabel}</p>
+          {t.closed && t.closedReason ? (
+            <p className="mt-1 text-sm text-[var(--muted)]">{t.closedReason}</p>
+          ) : null}
         </div>
         {data.adminName ? (
-          <p className="text-sm text-[var(--muted)]">
-            Connecté·e :{" "}
+          <p className="flex items-center gap-2 text-sm text-[var(--muted)]">
+            <span
+              className="inline-block size-2 shrink-0 rounded-full bg-[var(--ok)]"
+              aria-hidden
+            />
             <span className="font-medium text-[var(--text)]">{data.adminName}</span>
           </p>
         ) : null}
       </div>
+
+      {t.closed ? (
+        <div className="surface mb-5 border border-[var(--border)] px-4 py-3 text-sm">
+          Établissement fermé aujourd’hui — aucun créneau attendu.
+        </div>
+      ) : null}
 
       {/* KPIs journée */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -195,7 +253,6 @@ export default function AdminDashboardPage() {
               <ProgressBar value={data.week.fillRatePercent} />
               <p className="mt-1.5 text-xs text-[var(--muted)]">
                 {data.week.sessionsDone} / {data.week.expected} créneaux
-                (lun. → aujourd’hui)
               </p>
             </div>
             <div>

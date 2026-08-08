@@ -1,12 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { Button, Field, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 type AdminProfile = "school" | "national";
+
+const IS_DEMO = process.env.NODE_ENV !== "production";
 
 const PROFILES: Record<
   AdminProfile,
@@ -14,18 +15,17 @@ const PROFILES: Record<
 > = {
   school: {
     label: "Direction",
-    email: "admin@lycee.ga",
-    password: "admin123",
+    email: IS_DEMO ? "admin@lycee.ga" : "",
+    password: IS_DEMO ? "admin123" : "",
   },
   national: {
     label: "National",
-    email: "national@ecahier.ga",
-    password: "national123",
+    email: IS_DEMO ? "national@ecahier.ga" : "",
+    password: IS_DEMO ? "national123" : "",
   },
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const [profile, setProfile] = useState<AdminProfile>("school");
   const [email, setEmail] = useState(PROFILES.school.email);
   const [password, setPassword] = useState(PROFILES.school.password);
@@ -43,22 +43,31 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.message || "Identifiants incorrects");
-      return;
+    try {
+      await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "Identifiants incorrects");
+        setLoading(false);
+        return;
+      }
+      if (data.user.role === "teacher") {
+        setError("Cet accès est réservé aux administrateurs.");
+        setLoading(false);
+        return;
+      }
+      window.location.href =
+        data.user.role === "national_admin" ? "/national" : "/admin/classes";
+    } catch {
+      setError("Connexion impossible");
+      setLoading(false);
     }
-    if (data.user.role === "teacher") {
-      setError("Cet accès est réservé aux administrateurs.");
-      return;
-    }
-    router.push(data.user.role === "national_admin" ? "/national" : "/admin");
   }
 
   return (
@@ -80,50 +89,52 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5 bg-[var(--bg)] p-2">
-          {(Object.keys(PROFILES) as AdminProfile[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => selectProfile(key)}
-              className={cn(
-                "rounded-[10px] px-3 py-2.5 text-center text-sm font-semibold transition",
-                profile === key
-                  ? "bg-white text-[var(--brand)] shadow-sm ring-1 ring-[var(--brand)]/25"
-                  : "text-[var(--text)] hover:bg-white/70",
-              )}
-            >
-              {PROFILES[key].label}
-            </button>
-          ))}
-        </div>
+        <div className="p-4">
+          <div className="mb-4 grid grid-cols-2 gap-2 rounded-[10px] bg-[var(--bg)] p-1">
+            {(Object.keys(PROFILES) as AdminProfile[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => selectProfile(key)}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-semibold transition",
+                  profile === key
+                    ? "bg-white text-[var(--brand-ink)] shadow-[var(--shadow-sm)]"
+                    : "text-[var(--muted)]",
+                )}
+              >
+                {PROFILES[key].label}
+              </button>
+            ))}
+          </div>
 
-        <form onSubmit={onSubmit} className="p-4">
-          <Field label="Adresse e-mail">
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              autoComplete="username"
-              required
-            />
-          </Field>
-          <Field label="Mot de passe">
-            <Input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              autoComplete="current-password"
-              required
-            />
-          </Field>
-          {error ? (
-            <p className="mb-3 text-sm text-[var(--danger)]">{error}</p>
-          ) : null}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Connexion…" : "Se connecter"}
-          </Button>
-        </form>
+          <form onSubmit={onSubmit} className="space-y-3">
+            <Field label="Adresse e-mail">
+              <Input
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Mot de passe">
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </Field>
+            {error ? (
+              <p className="text-sm text-[var(--danger)]">{error}</p>
+            ) : null}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Connexion…" : "Se connecter"}
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );

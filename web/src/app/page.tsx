@@ -82,10 +82,15 @@ export default function HomePage() {
           Cahier de textes simplifié
         </p>
 
-        <div className="mt-14 w-full max-w-sm">
+        <div className="mt-14 flex w-full max-w-sm flex-col gap-3">
           <Link href="/scan/camera" className="block">
             <Button className="w-full" size="lg">
               Scanner la salle
+            </Button>
+          </Link>
+          <Link href="/scan" className="block">
+            <Button className="w-full" size="lg" variant="secondary">
+              Saisir le code salle
             </Button>
           </Link>
         </div>

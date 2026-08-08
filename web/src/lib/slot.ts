@@ -5,6 +5,8 @@ import {
   getWeekdayGabon,
   startOfDayGabon,
 } from "./datetime";
+import { isClosedSchoolDay } from "./holidays";
+import { shortDisplayName } from "./person-name";
 
 export function getWeekday(date: Date) {
   return getWeekdayGabon(date);
@@ -56,6 +58,25 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
     city: room.school.city,
   };
 
+  const roomInfo = {
+    id: room.id,
+    code: room.code,
+    label: room.label,
+    publicId: room.publicId,
+  };
+
+  const closed = await isClosedSchoolDay(at);
+  if (closed.closed) {
+    return {
+      room: roomInfo,
+      school: schoolInfo,
+      slot: null,
+      candidates: [] as never[],
+      resolvedAt: at.toISOString(),
+      note: closed.reason,
+    };
+  }
+
   const weekday = getWeekday(at);
   const nowHm = formatTime(at);
 
@@ -87,7 +108,7 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
     subject: { id: s.subject.id, name: s.subject.name },
     expectedTeacher: {
       id: s.teacher.id,
-      displayName: `${s.teacher.firstName} ${s.teacher.lastName}`,
+      displayName: shortDisplayName(s.teacher),
     },
     schoolId: s.schoolId,
     schoolYearId: s.schoolYearId,
@@ -96,13 +117,6 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
     subjectId: s.subjectId,
     teacherId: s.teacherId,
   });
-
-  const roomInfo = {
-    id: room.id,
-    code: room.code,
-    label: room.label,
-    publicId: room.publicId,
-  };
 
   if (matching.length === 1) {
     return {
@@ -124,8 +138,18 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
     };
   }
 
-  // Fallback: nearest upcoming / recent slot today
-  const candidates = slots.map(mapSlot);
+  // Fallback: créneau le plus proche dans le temps
+  const toMin = (hm: string) => {
+    const [h, m] = hm.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const nowMin = toMin(nowHm);
+  const ranked = [...slots].sort((a, b) => {
+    const da = Math.abs(toMin(a.startsAt) - nowMin);
+    const db = Math.abs(toMin(b.startsAt) - nowMin);
+    return da - db;
+  });
+  const candidates = ranked.map(mapSlot);
   return {
     room: roomInfo,
     school: schoolInfo,
@@ -133,16 +157,16 @@ export async function resolveCurrentSlot(roomPublicId: string, at = new Date()) 
     candidates,
     resolvedAt: at.toISOString(),
     note:
-      matching.length === 0
+      matching.length === 0 && candidates.length > 0
         ? "Aucun créneau exact — créneau le plus proche proposé."
         : undefined,
   };
 }
 
-export function combineDateAndTime(date: Date, hm: string) {
-  return combineDateAndTimeGabon(date, hm);
-}
-
 export function startOfDay(date: Date) {
   return startOfDayGabon(date);
+}
+
+export function combineDateAndTime(date: Date, hm: string) {
+  return combineDateAndTimeGabon(date, hm);
 }

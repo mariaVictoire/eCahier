@@ -84,6 +84,7 @@ function HomeIconLink() {
 
 export function AppHeader({
   title,
+  subtitle,
   backHref,
   backLabel,
   right,
@@ -91,6 +92,7 @@ export function AppHeader({
   showHome = true,
 }: {
   title?: string;
+  subtitle?: string;
   backHref?: string;
   backLabel?: string;
   right?: React.ReactNode;
@@ -100,8 +102,8 @@ export function AppHeader({
   const isAccueilBack = backLabel === "Accueil" && backHref === "/";
 
   return (
-    <header className="sticky top-0 z-20 -mx-5 mb-5 border-b border-[var(--stroke)] bg-[var(--bg)]/95 px-5 backdrop-blur-sm">
-      <div className="flex h-14 items-center justify-between gap-3">
+    <header className="sticky top-0 z-20 -mx-5 mb-3 border-b border-[var(--stroke)] bg-[var(--bg)]/95 px-5 backdrop-blur-sm">
+      <div className="flex h-12 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {backHref && !isAccueilBack ? (
             <BackLink href={backHref} label={backLabel} />
@@ -116,6 +118,11 @@ export function AppHeader({
               )}
               {!backHref && showBrand && title ? (
                 <p className="truncate text-xs text-[var(--muted)]">{title}</p>
+              ) : null}
+              {subtitle ? (
+                <p className="truncate text-xs capitalize text-[var(--muted)]">
+                  {subtitle}
+                </p>
               ) : null}
             </div>
           ) : null}

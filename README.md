@@ -24,14 +24,15 @@ Ouvrir [http://localhost:3000](http://localhost:3000)
 | Admin établissement | `admin@lycee.ga` / `admin123` |
 | Admin national | `national@ecahier.ga` / `national123` |
 | Enseignant | email `obame@lycee.ga` + PIN `123456` |
-| Salle démo | [Salle B12](http://localhost:3000/room/rm_b12_demo) |
+| Salle démo | Code `A4` (3ème A) → [/room/rm_a4_demo](http://localhost:3000/room/rm_a4_demo) |
 
 ### Parcours enseignant
 
-1. Accueil → **Scanner la salle** (ou démo B12)
-2. Vérifier classe / matière / horaire
-3. Saisir le **PIN** `123456`
-4. Remplir et **valider** la séance
+1. Accueil → **Scanner la salle** ou **Saisir le code** (ex. `A4`)
+2. Vérifier classe / matière / horaire + prof attendu
+3. Saisir le **PIN** `123456` pour confirmer
+4. Menu : **cahier de textes** · **liste de présence** · **historique**
+5. Présence : cases Absent / Retard (rien coché = présent)
 
 ### Parcours admin
 

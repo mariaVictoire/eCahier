@@ -5,7 +5,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { SignaturePad } from "@/components/signature-pad";
 import { Badge, Button, Field, Input, Textarea } from "@/components/ui";
-import { formatDateTimeFr } from "@/lib/datetime";
+import { formatDateLongFr, formatDateTimeFr } from "@/lib/datetime";
+import { shortDisplayName } from "@/lib/person-name";
 
 type Lesson = {
   id: string;
@@ -13,16 +14,16 @@ type Lesson = {
   content: string;
   exercises: string;
   homeworkText: string;
-  homeworkDueOn: string | null;
   observations: string;
   status: string;
   signatureImage: string | null;
   validatedAt: string | null;
+  sessionDate: string;
   classroom: { name: string };
   subject: { name: string };
   room: { label: string };
   teacher: { firstName: string; lastName: string };
-  school: { name: string };
+  school: { name: string; city?: string | null };
 };
 
 export default function SessionForm() {
@@ -32,12 +33,13 @@ export default function SessionForm() {
   const fromAdmin = search.get("from") === "admin";
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [roomScope, setRoomScope] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [exercises, setExercises] = useState("");
   const [homeworkText, setHomeworkText] = useState("");
-  const [homeworkDueOn, setHomeworkDueOn] = useState("");
   const [observations, setObservations] = useState("");
   const [signature, setSignature] = useState<string | null>(null);
   const [saveState, setSaveState] = useState("Chargement…");
@@ -53,6 +55,8 @@ export default function SessionForm() {
       .then((data) => {
         const role = data?.user?.role;
         setIsAdmin(role === "school_admin" || role === "national_admin");
+        setRoomScope(data?.user?.scope === "room");
+        setActiveSessionId(data?.user?.sessionId || null);
       })
       .catch(() => setIsAdmin(false));
   }, []);
@@ -69,9 +73,6 @@ export default function SessionForm() {
         setContent(data.content);
         setExercises(data.exercises);
         setHomeworkText(data.homeworkText);
-        setHomeworkDueOn(
-          data.homeworkDueOn ? data.homeworkDueOn.slice(0, 10) : "",
-        );
         setObservations(data.observations);
         setSignature(data.signatureImage);
         setSaveState(data.status === "validated" ? "Validée" : "Brouillon");
@@ -81,6 +82,7 @@ export default function SessionForm() {
 
   const canEdit =
     !!lesson &&
+    (!roomScope || activeSessionId === id) &&
     (isAdmin || (lesson.status !== "validated" && lesson.status !== "locked"));
 
   function payload(overrides: Record<string, unknown> = {}) {
@@ -89,7 +91,6 @@ export default function SessionForm() {
       content,
       exercises,
       homeworkText,
-      homeworkDueOn: homeworkDueOn || null,
       observations,
       signatureImage: signature,
       ...overrides,
@@ -200,14 +201,25 @@ export default function SessionForm() {
     );
   }
 
-  const teacherName = `${lesson.teacher.firstName} ${lesson.teacher.lastName}`;
-  const backHref = fromAdmin || isAdmin ? "/admin/cahiers" : "/";
-  const backLabel = fromAdmin || isAdmin ? "Cahiers" : "Accueil";
+  const teacherName = shortDisplayName(lesson.teacher);
+  const hubFrom = search.get("hub");
+  const fromHistorique = search.get("from") === "historique";
+  let backHref = "/";
+  let backLabel = "Accueil";
+  if (fromAdmin || isAdmin) {
+    backHref = "/admin/cahiers";
+    backLabel = "Cahiers";
+  } else if (fromHistorique && hubFrom) {
+    backHref = `/session/${hubFrom}/historique`;
+    backLabel = "Historique";
+  } else if (roomScope && activeSessionId) {
+    backHref = `/session/${activeSessionId}/hub`;
+    backLabel = "Menu";
+  }
 
   return (
     <div className="page-shell pb-10 md:max-w-2xl">
       <AppHeader
-        title={`${lesson.classroom.name} · ${lesson.subject.name}`}
         backHref={backHref}
         backLabel={backLabel}
         showBrand={false}
@@ -220,10 +232,14 @@ export default function SessionForm() {
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-sm font-semibold text-[var(--brand-ink)]">
-              {lesson.school.name}
+              {lesson.school?.name || "Établissement"}
+              {lesson.school?.city ? ` · ${lesson.school.city}` : ""}
             </p>
             <p className="text-xs text-[var(--muted)]">
               {lesson.room.label} · {teacherName}
+            </p>
+            <p className="mt-1 text-xs font-medium capitalize text-[var(--brand-ink)]">
+              {formatDateLongFr(lesson.sessionDate)}
             </p>
           </div>
           <Badge tone={lesson.status === "validated" ? "ok" : "warn"}>
@@ -234,7 +250,7 @@ export default function SessionForm() {
 
       {isAdmin && lesson.status === "validated" ? (
         <p className="mb-3 rounded-[10px] border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--brand-ink)]">
-          Mode correction direction — enregistré sans nouveau PIN enseignant.
+          Mode correction direction.
         </p>
       ) : null}
 
@@ -282,17 +298,6 @@ export default function SessionForm() {
             onChange={(e) => {
               setHomeworkText(e.target.value);
               scheduleSave(payload({ homeworkText: e.target.value }));
-            }}
-          />
-        </Field>
-        <Field label="Date de remise">
-          <Input
-            type="date"
-            value={homeworkDueOn}
-            disabled={!canEdit}
-            onChange={(e) => {
-              setHomeworkDueOn(e.target.value);
-              scheduleSave(payload({ homeworkDueOn: e.target.value || null }));
             }}
           />
         </Field>
@@ -378,6 +383,12 @@ export default function SessionForm() {
             <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
               Valider le cahier
             </h2>
+            {lesson.school?.name ? (
+              <p className="mt-1 text-sm font-semibold text-[var(--brand-ink)]">
+                {lesson.school.name}
+                {lesson.school.city ? ` · ${lesson.school.city}` : ""}
+              </p>
+            ) : null}
             <p className="mt-2 text-sm text-[var(--muted)]">
               Confirmez avec votre PIN. Ensuite, seule la direction pourra
               modifier cette séance.
@@ -390,13 +401,14 @@ export default function SessionForm() {
                 className="mt-3 h-24 w-full rounded-[10px] border border-[var(--stroke)] object-contain"
               />
             ) : null}
-            <Field label="PIN">
+            <Field label="PIN (6 chiffres)">
               <Input
                 value={pin}
                 onChange={(e) =>
-                  setPin(e.target.value.replace(/\D/g, "").slice(0, 8))
+                  setPin(e.target.value.replace(/\D/g, "").slice(0, 6))
                 }
                 inputMode="numeric"
+                maxLength={6}
                 autoFocus
               />
             </Field>
@@ -412,7 +424,7 @@ export default function SessionForm() {
               >
                 Annuler
               </Button>
-              <Button type="submit" className="flex-1">
+              <Button type="submit" className="flex-1" disabled={pin.length !== 6}>
                 Confirmer
               </Button>
             </div>

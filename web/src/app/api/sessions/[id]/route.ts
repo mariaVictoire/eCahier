@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { audit, getSession } from "@/lib/auth";
-
-function isAdmin(role: string) {
-  return role === "school_admin" || role === "national_admin";
-}
+import { canAccessLesson } from "@/lib/access";
 
 export async function GET(
   _req: Request,
@@ -26,12 +23,7 @@ export async function GET(
   });
   if (!lesson) return NextResponse.json({ message: "Introuvable" }, { status: 404 });
 
-  // Enseignant : uniquement la séance ouverte via PIN en cours
-  if (session.role === "teacher" || session.scope === "room") {
-    if (session.sessionId !== lesson.id && lesson.teacherId !== session.sub) {
-      return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
-    }
-  } else if (!isAdmin(session.role)) {
+  if (!canAccessLesson(session, lesson, "read")) {
     return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
   }
 
@@ -51,16 +43,20 @@ export async function PUT(
   });
   if (!lesson) return NextResponse.json({ message: "Introuvable" }, { status: 404 });
 
-  const admin = isAdmin(session.role);
-  const teacherOwns =
-    (session.role === "teacher" || session.scope === "room") &&
-    (lesson.teacherId === session.sub || session.sessionId === lesson.id);
+  const admin =
+    session.role === "school_admin" &&
+    session.schoolId === lesson.schoolId;
 
-  if (!admin && !teacherOwns) {
+  if (!canAccessLesson(session, lesson, "write")) {
+    if (session.role === "national_admin") {
+      return NextResponse.json(
+        { message: "Lecture seule pour l’admin national" },
+        { status: 403 },
+      );
+    }
     return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
   }
 
-  // Enseignant : pas de modification une fois validé — passer par la direction
   if (!admin && (lesson.status === "validated" || lesson.status === "locked")) {
     return NextResponse.json(
       {
@@ -96,7 +92,6 @@ export async function PUT(
         body.signatureImage !== undefined
           ? body.signatureImage
           : lesson.signatureImage,
-      // Admin qui corrige une séance validée : elle reste validée
       status: admin
         ? lesson.status === "locked"
           ? "locked"

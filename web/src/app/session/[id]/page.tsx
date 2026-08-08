@@ -1,18 +1,17 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { Suspense } from "react";
-import SessionForm from "./session-form";
-
-export default function SessionPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="page-shell">
-          <p className="text-sm text-[var(--muted)]">Chargement…</p>
-        </div>
-      }
-    >
-      <SessionForm />
-    </Suspense>
-  );
+/** Entrée séance : menu enseignant, ou cahier si ouverture admin. */
+export default async function SessionEntryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
+  const { id } = await params;
+  const { from } = await searchParams;
+  if (from === "admin") {
+    redirect(`/session/${id}/cahier?from=admin`);
+  }
+  redirect(`/session/${id}/hub`);
 }

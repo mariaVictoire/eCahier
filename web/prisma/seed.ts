@@ -7,8 +7,10 @@ const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 async function main() {
   await prisma.auditLog.deleteMany();
+  await prisma.attendanceRecord.deleteMany();
   await prisma.lessonSession.deleteMany();
   await prisma.timetableSlot.deleteMany();
+  await prisma.student.deleteMany();
   await prisma.subject.deleteMany();
   await prisma.classroom.deleteMany();
   await prisma.room.deleteMany();
@@ -105,13 +107,53 @@ async function main() {
     },
   });
 
+  const students3a = [
+    ["Mba", "Jean"],
+    ["Nzue", "Aline"],
+    ["Obame", "Kevin"],
+    ["Mintsa", "Grace"],
+    ["Essono", "Paul"],
+    ["Bongo", "Sarah"],
+    ["Ndong", "Marc"],
+    ["Ovono", "Claire"],
+  ] as const;
+  for (const [lastName, firstName] of students3a) {
+    await prisma.student.create({
+      data: {
+        schoolId: school.id,
+        classroomId: c3a.id,
+        firstName,
+        lastName,
+      },
+    });
+  }
+
+  const students2b = [
+    ["Allogho", "Nina"],
+    ["Ella", "Boris"],
+    ["Moussavou", "Inès"],
+    ["Ping", "Daniel"],
+    ["Tchibinda", "Laura"],
+    ["Bouassa", "Yves"],
+  ] as const;
+  for (const [lastName, firstName] of students2b) {
+    await prisma.student.create({
+      data: {
+        schoolId: school.id,
+        classroomId: c2b.id,
+        firstName,
+        lastName,
+      },
+    });
+  }
+
   const roomB12 = await prisma.room.create({
     data: {
       schoolId: school.id,
-      code: "B12",
-      label: "Salle B12",
+      code: "A4", // 3ème A → lettre A + rang 4
+      label: "3ème A",
       building: "Bloc B",
-      publicId: "rm_b12_demo",
+      publicId: "rm_a4_demo",
       homeClassroomId: c3a.id,
     },
   });
@@ -119,10 +161,10 @@ async function main() {
   const roomA03 = await prisma.room.create({
     data: {
       schoolId: school.id,
-      code: "A03",
-      label: "Salle A03",
+      code: "B5", // 2nde B → lettre B + rang 5
+      label: "2nde B",
       building: "Bloc A",
-      publicId: "rm_a03_demo",
+      publicId: "rm_b5_demo",
       homeClassroomId: c2b.id,
     },
   });
@@ -198,7 +240,8 @@ async function main() {
   console.log("National: national@ecahier.ga / national123");
   console.log("Admin école: admin@lycee.ga / admin123");
   console.log("Enseignant PIN: OBAME 123456 · NZUE 654321");
-  console.log("QR salle B12: /room/rm_b12_demo");
+  console.log("QR salle 3ème A (code A4): /room/rm_a4_demo");
+  console.log("QR salle 2nde B (code B5): /room/rm_b5_demo");
   console.log("Admin id:", admin.id);
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { Badge, Button } from "@/components/ui";
@@ -18,7 +18,7 @@ type Slot = {
 
 type Resolved = {
   room: { code: string; label: string };
-  school: { name: string; city?: string | null };
+  school?: { name: string; city?: string | null } | null;
   slot: Slot | null;
   candidates: Slot[];
   note?: string;
@@ -27,11 +27,13 @@ type Resolved = {
 export default function RoomPinPage() {
   const { publicId } = useParams<{ publicId: string }>();
   const router = useRouter();
+  const pinRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<Resolved | null>(null);
   const [slotId, setSlotId] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   useEffect(() => {
     fetch(`/api/rooms/${publicId}/current-slot`)
@@ -47,19 +49,27 @@ export default function RoomPinPage() {
       .catch(() => setError("Salle introuvable"));
   }, [publicId]);
 
+  useEffect(() => {
+    if (data) {
+      const t = window.setTimeout(() => pinRef.current?.focus(), 150);
+      return () => window.clearTimeout(t);
+    }
+  }, [data]);
+
   const activeSlot = useMemo(() => {
     if (!data) return null;
     if (data.slot && data.slot.id === slotId) return data.slot;
     return data.candidates.find((c) => c.id === slotId) || data.slot;
   }, [data, slotId]);
 
-  function press(d: string) {
-    if (pin.length >= 6) return;
-    setPin((p) => p + d);
+  const schoolName = data?.school?.name?.trim() || "";
+
+  function setPinDigits(raw: string) {
+    setPin(raw.replace(/\D/g, "").slice(0, 6));
   }
 
   async function validate() {
-    if (pin.length < 4 || !slotId) return;
+    if (pin.length < 6 || !slotId) return;
     setLoading(true);
     setError("");
     const res = await fetch("/api/auth/pin", {
@@ -72,9 +82,10 @@ export default function RoomPinPage() {
     if (!res.ok) {
       setError(json.message || "Code incorrect");
       setPin("");
+      pinRef.current?.focus();
       return;
     }
-    router.push(`/session/${json.sessionId}`);
+    router.push(`/session/${json.sessionId}/hub`);
   }
 
   useEffect(() => {
@@ -82,13 +93,17 @@ export default function RoomPinPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
 
+  const multiSlot =
+    (data?.candidates.length ?? 0) > 1 ||
+    (!data?.slot && (data?.candidates.length ?? 0) > 0);
+
   return (
-    <div className="page-shell">
+    <div className="page-shell flex min-h-dvh flex-col !pb-3">
       <AppHeader
-        title={data?.room.label || "Salle"}
         backHref="/scan"
         backLabel="Retour"
         showBrand={false}
+        showHome
       />
 
       {!data && !error ? (
@@ -99,155 +114,152 @@ export default function RoomPinPage() {
       ) : null}
 
       {data ? (
-        <>
-          <div className="surface overflow-hidden">
-            <div className="border-b border-[var(--stroke)] bg-[var(--brand-ink)] px-4 py-4 text-white">
-              <p className="text-xs uppercase tracking-wide text-white/70">
-                Établissement
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="overflow-hidden rounded-[10px] border border-[var(--stroke)]">
+            <div className="bg-[var(--brand-ink)] px-4 py-3.5 text-white">
+              <p className="text-[11px] uppercase tracking-wide text-white/70">
+                {formatDateFr(new Date())}
               </p>
-              <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold">
-                {data.school.name}
+              <p className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold leading-snug">
+                {activeSlot
+                  ? `Bienvenue, professeur ${activeSlot.expectedTeacher.displayName}`
+                  : "Bienvenue"}
               </p>
-              {data.school.city ? (
-                <p className="mt-0.5 text-sm text-white/75">{data.school.city}</p>
+              {schoolName ? (
+                <p className="mt-1 text-sm text-white/75">{schoolName}</p>
               ) : null}
-            </div>
-            <div className="px-4 py-3 text-sm text-[var(--muted)] capitalize">
-              {formatDateFr(new Date())} · {data.room.label}
             </div>
           </div>
 
-          {(data.candidates.length > 1 || !data.slot) &&
-          data.candidates.length > 0 ? (
-            <div className="mt-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                Créneau
-              </p>
-              <div className="space-y-2">
-                {data.candidates.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSlotId(c.id)}
-                    className={`w-full rounded-[10px] border px-4 py-3 text-left text-sm transition ${
-                      slotId === c.id
-                        ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                        : "border-[var(--stroke)] bg-white"
-                    }`}
-                  >
-                    <span className="font-semibold">
-                      {formatHmRangeFr(c.startsAt, c.endsAt)}
-                    </span>
-                    <span className="text-[var(--muted)]">
-                      {" "}
-                      · {c.classroom.name} · {c.subject.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
+          {multiSlot ? (
+            <div className="space-y-1.5">
+              {data.candidates.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSlotId(c.id)}
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                    slotId === c.id
+                      ? "border-[var(--brand)] bg-[var(--brand-soft)]"
+                      : "border-[var(--stroke)] bg-white"
+                  }`}
+                >
+                  <span className="font-semibold">
+                    {formatHmRangeFr(c.startsAt, c.endsAt)}
+                  </span>
+                  <span className="text-[var(--muted)]">
+                    {" "}
+                    · {c.classroom.name} · {c.subject.name}
+                  </span>
+                </button>
+              ))}
             </div>
           ) : null}
 
           {activeSlot ? (
-            <dl className="surface mt-4 divide-y divide-[var(--stroke)] px-4">
+            <dl className="surface divide-y divide-[var(--stroke)] px-4">
               {(
                 [
                   ["Classe", activeSlot.classroom.name],
                   ["Matière", activeSlot.subject.name],
-                  ["Enseignant prévu", activeSlot.expectedTeacher.displayName],
-                  ["Horaire", formatHmRangeFr(activeSlot.startsAt, activeSlot.endsAt)],
+                  [
+                    "Horaire",
+                    formatHmRangeFr(activeSlot.startsAt, activeSlot.endsAt),
+                  ],
                 ] as const
               ).map(([k, v]) => (
-                <div key={k} className="flex items-baseline justify-between gap-3 py-3">
+                <div
+                  key={k}
+                  className="flex items-baseline justify-between gap-3 py-2.5"
+                >
                   <dt className="text-sm text-[var(--muted)]">{k}</dt>
                   <dd className="text-right text-sm font-semibold">{v}</dd>
                 </div>
               ))}
             </dl>
           ) : (
-            <p className="mt-4 text-sm text-[var(--warn)]">
+            <p className="text-sm text-[var(--warn)]">
               Aucun créneau pour cette salle.
             </p>
           )}
 
           {data.note ? (
-            <p className="mt-2 text-xs text-[var(--warn)]">{data.note}</p>
+            <p className="text-xs text-[var(--warn)]">{data.note}</p>
           ) : null}
 
-          <div className="mt-8 text-center">
+          <div className="mt-auto text-center">
             <p className="text-sm font-semibold text-[var(--text)]">
-              Confirmez votre identité
+              Saisissez votre PIN
             </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              {activeSlot ? (
-                <>
-                  Code PIN de{" "}
-                  <span className="font-medium text-[var(--text)]">
-                    {activeSlot.expectedTeacher.displayName}
-                  </span>
-                </>
-              ) : (
-                "Saisissez votre code PIN personnel"
-              )}
-            </p>
-            <div className="my-5 flex justify-center gap-2.5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <span
-                  key={i}
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    i < pin.length ? "bg-[var(--brand)]" : "bg-[var(--stroke)]"
-                  }`}
-                />
-              ))}
+
+            <div className="relative mx-auto mt-4 max-w-[18rem]">
+              <input
+                ref={pinRef}
+                value={pin}
+                onChange={(e) => setPinDigits(e.target.value)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
+                enterKeyHint="done"
+                maxLength={6}
+                disabled={loading || !slotId}
+                aria-label="Code PIN à 6 chiffres"
+                className="absolute inset-0 z-10 cursor-text opacity-0"
+              />
+              <button
+                type="button"
+                className="flex w-full justify-center gap-2.5"
+                onClick={() => pinRef.current?.focus()}
+              >
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const filled = i < pin.length;
+                  const active = focused && i === Math.min(pin.length, 5);
+                  return (
+                    <span
+                      key={i}
+                      className={`flex h-11 w-11 items-center justify-center rounded-full border text-base font-semibold transition ${
+                        active
+                          ? "border-[var(--brand)] bg-[var(--brand-soft)] ring-2 ring-[var(--brand)]/25"
+                          : filled
+                            ? "border-[var(--brand)] bg-white"
+                            : "border-[var(--stroke)] bg-white"
+                      }`}
+                    >
+                      <span
+                        className={
+                          filled
+                            ? "text-[var(--text)]"
+                            : "text-transparent"
+                        }
+                      >
+                        •
+                      </span>
+                    </span>
+                  );
+                })}
+              </button>
             </div>
+
             {error ? (
-              <p className="mb-3 text-sm text-[var(--danger)]">{error}</p>
+              <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>
             ) : null}
-            <div className="mx-auto grid max-w-[17rem] grid-cols-3 gap-2">
-              {"123456789".split("").map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => press(d)}
-                  className="h-14 rounded-[10px] border border-[var(--stroke)] bg-white text-xl font-semibold text-[var(--text)] active:bg-[var(--bg)]"
-                >
-                  {d}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setPin("")}
-                className="h-14 text-xs font-medium text-[var(--muted)]"
-              >
-                Effacer
-              </button>
-              <button
-                type="button"
-                onClick={() => press("0")}
-                className="h-14 rounded-[10px] border border-[var(--stroke)] bg-white text-xl font-semibold"
-              >
-                0
-              </button>
-              <button
-                type="button"
-                onClick={() => setPin((p) => p.slice(0, -1))}
-                className="h-14 text-xs font-medium text-[var(--muted)]"
-              >
-                Corriger
-              </button>
-            </div>
+
             <Button
-              className="mt-5 w-full"
-              disabled={pin.length < 4 || loading || !slotId}
+              className="mt-4 w-full"
+              disabled={pin.length < 6 || loading || !slotId}
               onClick={validate}
             >
               {loading ? "Vérification…" : "Continuer"}
             </Button>
-            <div className="mt-3 flex justify-center">
-              <Badge tone="info">Démo PIN : 123456</Badge>
-            </div>
+            {process.env.NODE_ENV !== "production" ? (
+              <div className="mt-2 flex justify-center">
+                <Badge tone="info">Démo PIN : 123456</Badge>
+              </div>
+            ) : null}
           </div>
-        </>
+        </div>
       ) : null}
     </div>
   );

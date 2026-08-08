@@ -164,16 +164,18 @@ export function PageTitle({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="font-[family-name:var(--font-sans)] text-[1.75rem] font-semibold leading-tight text-[var(--brand-ink)]">
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="m-0 font-[family-name:var(--font-sans)] text-[1.75rem] font-semibold leading-tight tracking-tight text-[var(--brand-ink)]">
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">{subtitle}</p>
+          <p className="m-0 mt-1 font-[family-name:var(--font-sans)] text-sm leading-snug text-[var(--muted)]">
+            {subtitle}
+          </p>
         ) : null}
       </div>
-      {action ? <div className="flex flex-wrap gap-2">{action}</div> : null}
+      {action ? <div className="flex flex-wrap gap-2 sm:pt-1">{action}</div> : null}
     </div>
   );
 }

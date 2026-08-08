@@ -36,15 +36,14 @@ export default function ScanPage() {
 
       <form onSubmit={onManual} className="surface p-5">
         <p className="mb-4 text-sm text-[var(--muted)]">
-          Entrez le code affiché près du QR (ex. B12), ou le lien communiqué
-          par l’administration.
+          Entrez le code affiché sur l’étiquette QR (ex. A1, B1, A2).
         </p>
         <Field label="Code salle">
           <Input
             ref={inputRef}
             value={manual}
             onChange={(e) => setManual(e.target.value)}
-            placeholder="B12"
+            placeholder="A1"
             autoCapitalize="characters"
             autoCorrect="off"
             autoComplete="off"

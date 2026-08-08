@@ -15,6 +15,8 @@ export async function GET() {
       lastName: session.lastName,
       scope: session.scope,
       sessionId: session.sessionId,
+      roomId: session.roomId,
+      slotId: session.slotId,
     },
   });
 }

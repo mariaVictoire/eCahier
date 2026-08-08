@@ -15,10 +15,20 @@ export async function GET(req: Request) {
     deletedAt: null,
   };
 
-  if (session.role === "teacher") {
+  if (session.role === "teacher" || session.scope === "room") {
     where.teacherId = session.sub;
-  } else if (session.schoolId) {
+    if (session.scope === "room" && session.sessionId) {
+      where.id = session.sessionId;
+    }
+  } else if (session.role === "school_admin") {
+    if (!session.schoolId) {
+      return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
+    }
     where.schoolId = session.schoolId;
+  } else if (session.role === "national_admin") {
+    // Vue nationale : toutes les séances (lecture)
+  } else {
+    return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
   }
 
   if (classroomId) where.classroomId = classroomId;

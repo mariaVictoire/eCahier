@@ -1,5 +1,6 @@
-import { SallesManager } from "./salles-manager";
+import { redirect } from "next/navigation";
 
-export default function SallesPage() {
-  return <SallesManager />;
+/** Les QR se gèrent depuis Classes (création, impression, modification). */
+export default function SallesRedirectPage() {
+  redirect("/admin/classes");
 }

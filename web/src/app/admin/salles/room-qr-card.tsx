@@ -48,6 +48,7 @@ export function RoomQrCard({
       const sticker = await buildLabeledSticker({
         qrDataUrl,
         title,
+        code,
       });
       if (cancelled) return;
       setStickerSrc(sticker);
@@ -55,7 +56,7 @@ export function RoomQrCard({
     return () => {
       cancelled = true;
     };
-  }, [url, title]);
+  }, [url, title, code]);
 
   async function handleToggle() {
     if (!onToggleActive || busy) return;
@@ -137,6 +138,9 @@ export function RoomQrCard({
           <div className="bg-[var(--brand-ink)] px-3 py-3 text-center">
             <p className="font-[family-name:var(--font-sans)] text-[1.15rem] font-semibold leading-tight text-white">
               {title}
+            </p>
+            <p className="mt-1 text-sm font-semibold tracking-wide text-[var(--accent)]">
+              Code : {code}
             </p>
           </div>
           <div className="flex justify-center p-4">

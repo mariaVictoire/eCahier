@@ -127,6 +127,14 @@ async function advanceOneYear(
 export async function ensureSchoolYearCurrent(
   schoolId: string,
 ): Promise<EnsureResult> {
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { id: true },
+  });
+  if (!school) {
+    throw new Error("SCHOOL_NOT_FOUND");
+  }
+
   const current = await prisma.schoolYear.findFirst({
     where: { schoolId, isCurrent: true },
   });

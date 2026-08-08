@@ -9,8 +9,10 @@ import {
 } from "@/lib/datetime";
 import { addDays, startOfWeekMonday } from "@/lib/calendar";
 import { ensureSchoolYearCurrent } from "@/lib/school-year";
-
-const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+import {
+  closedPeriodForDay,
+  loadHolidayPeriods,
+} from "@/lib/holidays";
 
 function pct(done: number, expected: number) {
   if (expected === 0) return 100;
@@ -26,7 +28,24 @@ export async function GET() {
     return NextResponse.json({ message: "Accès refusé" }, { status: 403 });
   }
 
-  await ensureSchoolYearCurrent(session.schoolId);
+  try {
+    await ensureSchoolYearCurrent(session.schoolId);
+  } catch (err) {
+    if (err instanceof Error && err.message === "SCHOOL_NOT_FOUND") {
+      return NextResponse.json(
+        {
+          message:
+            "Établissement introuvable. Déconnectez-vous puis reconnectez-vous.",
+        },
+        { status: 404 },
+      );
+    }
+    console.error("[dashboard/school]", err);
+    return NextResponse.json(
+      { message: "Impossible de charger le tableau de bord" },
+      { status: 500 },
+    );
+  }
 
   const now = new Date();
   const today = startOfDay(now);
@@ -43,10 +62,6 @@ export async function GET() {
     new Date(parts.year, parts.month - 1, 1, 12, 0, 0),
   );
 
-  const weekdayIdx = WEEKDAYS.indexOf(weekday as (typeof WEEKDAYS)[number]);
-  const weekdaysToDate =
-    weekdayIdx >= 0 ? WEEKDAYS.slice(0, weekdayIdx + 1) : ["mon"];
-
   const [
     slotsToday,
     sessionsToday,
@@ -59,6 +74,7 @@ export async function GET() {
     classroomsCount,
     roomsActiveCount,
     subjectsCount,
+    holidayPeriods,
   ] = await Promise.all([
     prisma.timetableSlot.findMany({
       where: { schoolId, weekday, deletedAt: null },
@@ -107,18 +123,22 @@ export async function GET() {
       where: { schoolId, isActive: true, deletedAt: null },
     }),
     prisma.subject.count({ where: { schoolId } }),
+    loadHolidayPeriods(now),
   ]);
+
+  const todayClosed = closedPeriodForDay(now, holidayPeriods);
 
   const filledSlotIds = new Set(
     sessionsToday.filter((s) => s.slotId).map((s) => s.slotId as string),
   );
 
-  const missing = slotsToday.filter((s) => !filledSlotIds.has(s.id));
+  const activeSlotsToday = todayClosed ? [] : slotsToday;
+  const missing = activeSlotsToday.filter((s) => !filledSlotIds.has(s.id));
   const overdueMissing = missing.filter((s) => s.endsAt <= nowHm);
   const upcomingMissing = missing.filter((s) => s.endsAt > nowHm);
 
   const done = sessionsToday.length;
-  const expected = slotsToday.length;
+  const expected = activeSlotsToday.length;
   const fillRate = pct(done, expected);
   const validatedToday = sessionsToday.filter((s) => s.status === "validated").length;
   const draftToday = sessionsToday.filter((s) => s.status === "draft").length;
@@ -128,38 +148,38 @@ export async function GET() {
     slotsByWeekday.set(s.weekday, (slotsByWeekday.get(s.weekday) || 0) + 1);
   }
 
-  let expectedWeek = 0;
-  for (const d of weekdaysToDate) {
-    expectedWeek += slotsByWeekday.get(d) || 0;
-  }
-  const doneWeek = weekSessions.length;
-  const fillRateWeek = pct(doneWeek, expectedWeek);
-
-  // Mois : estimation = créneaux/jour ouvr × jours ouvr écoulés (lun–sam typiquement)
-  const schoolDaysInMonth: string[] = [];
-  {
-    let cursor = new Date(parts.year, parts.month - 1, 1, 12, 0, 0);
-    const end = new Date(parts.year, parts.month - 1, parts.day, 12, 0, 0);
+  function expectedOpenDays(fromLocal: Date, toLocal: Date) {
+    let total = 0;
+    let cursor = new Date(fromLocal);
+    const end = new Date(toLocal);
     while (cursor <= end) {
-      const wd = getWeekday(cursor);
-      if ((slotsByWeekday.get(wd) || 0) > 0) {
-        schoolDaysInMonth.push(wd);
+      if (!closedPeriodForDay(cursor, holidayPeriods)) {
+        const wd = getWeekday(cursor);
+        total += slotsByWeekday.get(wd) || 0;
       }
       cursor = addDays(cursor, 1);
     }
+    return total;
   }
-  let expectedMonth = 0;
-  for (const d of schoolDaysInMonth) {
-    expectedMonth += slotsByWeekday.get(d) || 0;
-  }
-  const doneMonth = monthSessions.length;
+
+  const expectedWeek = expectedOpenDays(
+    weekStartLocal,
+    new Date(parts.year, parts.month - 1, parts.day, 12, 0, 0),
+  );
+  const doneWeek = weekSessions.length;
+  const fillRateWeek = pct(doneWeek, expectedWeek);
+
+  const expectedMonth = expectedOpenDays(
+    new Date(parts.year, parts.month - 1, 1, 12, 0, 0),
+    new Date(parts.year, parts.month - 1, parts.day, 12, 0, 0),
+  );  const doneMonth = monthSessions.length;
   const fillRateMonth = pct(doneMonth, expectedMonth);
 
   const byTeacherMap = new Map<
     string,
     { teacherId: string; name: string; done: number; missing: number }
   >();
-  for (const s of slotsToday) {
+  for (const s of activeSlotsToday) {
     const key = s.teacherId;
     const cur = byTeacherMap.get(key) || {
       teacherId: key,
@@ -176,8 +196,7 @@ export async function GET() {
     string,
     { classroomId: string; name: string; done: number; missing: number }
   >();
-  for (const s of slotsToday) {
-    const key = s.classroomId;
+  for (const s of activeSlotsToday) {    const key = s.classroomId;
     const cur = byClassroomMap.get(key) || {
       classroomId: key,
       name: s.classroom.name,
@@ -210,8 +229,13 @@ export async function GET() {
       fillRatePercent: fillRate,
       validated: validatedToday,
       draft: draftToday,
-    },
-    week: {
+      closed: !!todayClosed,
+      closedReason: todayClosed
+        ? todayClosed.kind === "strike"
+          ? `Jour de grève : ${todayClosed.name}`
+          : `Vacances : ${todayClosed.name}`
+        : null,
+    },    week: {
       sessionsDone: doneWeek,
       expected: expectedWeek,
       fillRatePercent: fillRateWeek,

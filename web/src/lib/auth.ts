@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
 const COOKIE = "ecahier_session";
+const DEV_FALLBACK = "ecahier-dev-secret-change-me";
 
 export type SessionPayload = {
   sub: string;
@@ -19,9 +20,15 @@ export type SessionPayload = {
 };
 
 function secret() {
-  return new TextEncoder().encode(
-    process.env.AUTH_SECRET || "ecahier-dev-secret-change-me",
-  );
+  const value = process.env.AUTH_SECRET?.trim();
+  if (process.env.NODE_ENV === "production") {
+    if (!value || value === DEV_FALLBACK || value.length < 32) {
+      throw new Error(
+        "AUTH_SECRET manquant ou trop faible (min. 32 caractères) en production.",
+      );
+    }
+  }
+  return new TextEncoder().encode(value || DEV_FALLBACK);
 }
 
 export async function signSession(
@@ -105,6 +112,8 @@ export async function audit(
   });
 }
 
-export function displayName(u: { firstName: string; lastName: string }) {
-  return `${u.firstName} ${u.lastName}`.trim();
-}
+export {
+  shortDisplayName,
+  shortDisplayName as displayName,
+  fullDisplayName,
+} from "./person-name";

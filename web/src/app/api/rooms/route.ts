@@ -5,6 +5,7 @@ import {
   CLASS_LEVELS,
   classroomName,
   nextSectionLetter,
+  roomCodeFromLevelAndLetter,
 } from "@/lib/classrooms";
 
 async function requireAdmin() {
@@ -26,16 +27,6 @@ function makePublicId(code: string) {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "");
   return `rm_${slug}_${Date.now().toString(36).slice(-4)}`;
-}
-
-function roomCodeFromClassName(name: string) {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ème/gi, "E")
-    .replace(/[^a-zA-Z0-9]+/g, "")
-    .toUpperCase()
-    .slice(0, 12);
 }
 
 export async function GET() {
@@ -136,13 +127,14 @@ export async function POST(req: Request) {
   }
 
   const name = classroomName(level, letter);
-  let code = roomCodeFromClassName(name);
+  let code = roomCodeFromLevelAndLetter(level, letter);
 
   const codeClash = await prisma.room.findFirst({
     where: { schoolId: session.schoolId!, code, deletedAt: null },
   });
   if (codeClash) {
-    code = `${code}${Date.now().toString(36).slice(-3)}`.toUpperCase();
+    // Collision rare (salle orpheline / année précédente) → suffixe court
+    code = `${code}${Date.now().toString(36).slice(-2)}`.toUpperCase();
   }
 
   const classroom = await prisma.classroom.create({

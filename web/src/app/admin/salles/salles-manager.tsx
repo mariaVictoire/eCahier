@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Field, PageTitle, Select, Textarea } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { CLASS_LEVELS } from "@/lib/classrooms";
+import { CLASS_LEVELS, roomCodeFromLevelAndLetter } from "@/lib/classrooms";
 import { buildLabeledSticker, printStickerImage } from "@/lib/qr-sticker";
 import { RoomQrCard } from "./room-qr-card";
 
@@ -61,6 +61,15 @@ export function SallesManager() {
     return `${level} ?`;
   }, [classrooms, level]);
 
+  const previewCode = useMemo(() => {
+    const letter = previewName.split(" ").pop();
+    if (!letter || letter === "?") return "—";
+    try {
+      return roomCodeFromLevelAndLetter(level, letter);
+    } catch {
+      return "—";
+    }
+  }, [level, previewName]);
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     setError("");
@@ -102,16 +111,13 @@ export function SallesManager() {
     }
 
     const title = data.label || data.classroomName;
-    const subtitle = data.building
-      ? `${data.code} · ${data.building}`
-      : data.code;
 
     let stickerSrc = data.qrDataUrl as string;
     try {
       stickerSrc = await buildLabeledSticker({
         qrDataUrl: data.qrDataUrl,
         title,
-        subtitle,
+        code: data.code,
       });
     } catch {
       // QR brut
@@ -200,10 +206,6 @@ export function SallesManager() {
           <h2 className="font-[family-name:var(--font-sans)] text-xl font-semibold text-[var(--brand-ink)]">
             Nouvelle classe + QR
           </h2>
-          <p className="mb-4 text-sm leading-relaxed text-[var(--muted)]">
-            Sélectionnez le niveau. La lettre suivante est attribuée
-            automatiquement (ex. 6ème A, puis 6ème B…).
-          </p>
           <Field label="Niveau">
             <Select
               value={level}
@@ -231,6 +233,11 @@ export function SallesManager() {
             Sera créée :{" "}
             <span className="font-[family-name:var(--font-sans)] text-lg font-semibold text-[var(--brand-ink)]">
               {previewName}
+            </span>
+            {" · "}
+            code{" "}
+            <span className="font-[family-name:var(--font-sans)] text-lg font-semibold text-[var(--accent)]">
+              {previewCode}
             </span>
           </p>
           <Button
@@ -282,7 +289,7 @@ export function SallesManager() {
 
       {created ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-[var(--radius-lg)] bg-white p-5">
+          <div className="max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-[var(--radius-lg)] bg-white p-6 sm:p-8">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">
               Classe + QR créés
             </p>
@@ -290,19 +297,21 @@ export function SallesManager() {
               {created.label}
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {created.building
-                ? created.building
-                : "Étiquette prête à imprimer pour la porte."}
+              Code{" "}
+              <span className="font-semibold text-[var(--brand-ink)]">
+                {created.code}
+              </span>
+              {created.building ? ` · ${created.building}` : ""}
             </p>
-            <div className="mt-4 flex justify-center">
+            <div className="mt-5 flex justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={created.stickerSrc}
                 alt={`QR ${created.label}`}
-                className="w-full max-w-[280px] rounded-[14px] border border-[var(--stroke)]"
+                className="w-full max-w-[360px] rounded-[14px] border border-[var(--stroke)]"
               />
             </div>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
                 className="flex-1"
@@ -319,7 +328,16 @@ export function SallesManager() {
               >
                 Télécharger
               </a>
+              <a
+                href={`/admin/classes`}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-[10px] border border-[var(--stroke-strong)] bg-white px-4 text-[15px] font-semibold text-[var(--text)] hover:bg-[var(--bg)]"
+              >
+                Ajouter l’effectif
+              </a>
             </div>
+            <p className="mt-2 text-center text-xs text-[var(--muted)]">
+              Ensuite : Admin → Classes → Effectif (CSV, JSON ou saisie).
+            </p>
             <Button
               type="button"
               variant="ghost"

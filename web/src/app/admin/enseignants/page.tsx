@@ -202,7 +202,6 @@ export default function EnseignantsPage() {
     <div>
       <PageTitle
         title="Équipe"
-        subtitle="Consultez les PIN et retransmettez-les par WhatsApp en cas d’oubli."
         action={
           <Button type="button" size="sm" onClick={openCreate}>
             Ajouter un enseignant

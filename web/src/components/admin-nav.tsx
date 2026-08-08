@@ -18,14 +18,14 @@ const tabs = [
     icon: IconCahiers,
   },
   {
+    href: "/admin/classes",
+    label: "Classes",
+    icon: IconClasses,
+  },
+  {
     href: "/admin/edt",
     label: "EDT",
     icon: IconEdt,
-  },
-  {
-    href: "/admin/salles",
-    label: "QR",
-    icon: IconSalles,
   },
   {
     href: "/admin/enseignants",
@@ -60,20 +60,25 @@ function IconCahiers({ className }: { className?: string }) {
   );
 }
 
+function IconClasses({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 19V7l8-3 8 3v12"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M12 10v9M8 12v7M16 12v7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IconEdt({ className }: { className?: string }) {
   return (
     <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.75" />
       <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconSalles({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" />
     </svg>
   );
 }
